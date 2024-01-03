@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+typst = { git = "https://github.com/typst/typst", package = "typst" }
+typst_pdf = { git = "https://github.com/typst/typst", package = "typst-pdf" }
+comemo = { git = "https://github.com/typst/comemo", rev = "ddb3773" }
+once_cell = "1.19.0"
+include_dir = "0.7.3"
