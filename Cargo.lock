@@ -815,6 +815,7 @@ dependencies = [
  "once_cell",
  "serde",
  "thiserror",
+ "toml",
  "typst",
  "typst-pdf",
 ]

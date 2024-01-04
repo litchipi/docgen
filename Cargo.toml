@@ -12,3 +12,4 @@ include_dir = "0.7.3"
 clap = { version = "4.4.12", features = ["derive"] }
 thiserror = "1.0.56"
 serde = "1.0.194"
+toml = "0.8.8"

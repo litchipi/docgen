@@ -1,4 +1,4 @@
-use typst::syntax::{Source, FileId, VirtualPath};
+use typst::syntax::{FileId, Source, VirtualPath};
 
 use crate::doc_config::DocumentConfig;
 use crate::errors::Errcode;
@@ -13,7 +13,7 @@ pub struct InvoiceBuilder<'a> {
 
 impl<'a> Into<TypstWorld<'a>> for InvoiceBuilder<'a> {
     fn into(self) -> TypstWorld<'a> {
-        let InvoiceBuilder { source , config } = self;
+        let InvoiceBuilder { source, config } = self;
         TypstWorld {
             config,
             source: Source::new(FileId::new(None, VirtualPath::new("/source")), source),
@@ -24,7 +24,10 @@ impl<'a> Into<TypstWorld<'a>> for InvoiceBuilder<'a> {
 
 impl<'a> InvoiceBuilder<'a> {
     pub fn new(config: &'a DocumentConfig) -> InvoiceBuilder {
-        InvoiceBuilder { source: String::new(), config, }
+        InvoiceBuilder {
+            source: String::new(),
+            config,
+        }
     }
 
     pub fn generate_invoice(&mut self) -> Result<(), Errcode> {

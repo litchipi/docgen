@@ -1,4 +1,4 @@
-use crate::{errors::Errcode, doc_config::DocumentConfig, world::TypstWorld};
+use crate::{doc_config::DocumentConfig, errors::Errcode, world::TypstWorld};
 
 pub mod invoice;
 

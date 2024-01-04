@@ -5,10 +5,10 @@ use doc_config::DocumentConfig;
 use typst::eval::Tracer;
 use typst::model::Document;
 
+mod doc_config;
 mod doctype;
 mod errors;
 mod world;
-mod doc_config;
 
 use doctype::DocumentType;
 use errors::Errcode;
@@ -53,10 +53,14 @@ fn export(outfile: &PathBuf, document: &Document) -> Result<(), Errcode> {
 fn main() {
     let args = Args::parse();
     let doc_config = DocumentConfig::try_from(&args).unwrap();
-    let Args { doctype, outfile , ..} = args;
+    let Args {
+        doctype, outfile, ..
+    } = args;
     let doctype: DocumentType = doctype.try_into().unwrap();
 
-    let source = doctype.generate_typst(&doc_config).expect("Unable to generate typst code");
+    let source = doctype
+        .generate_typst(&doc_config)
+        .expect("Unable to generate typst code");
     let doc = compile_typst(source).expect("Unable to compile generated typst code");
     export(&outfile, &doc).expect("Unable to export to file")
 }
