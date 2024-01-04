@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs::FileType;
 use std::path::{Path, PathBuf};
 
 use comemo::Prehashed;
@@ -23,13 +24,14 @@ impl TryFrom<&Args> for DocumentConfig {
 
     fn try_from(args: &Args) -> Result<Self, Errcode> {
         let fonts = import_fonts(&args.fonts_dir)?;
+        let font_book = FontBook::from_fonts(&fonts);
         let assets = import_assets(&args.assets_dir)?;
         let config = import_config(&args.config_file)?;
         let style = import_style(&args.style_sheet, &config)?;
         let datetime_offset = config.get("datetime_offset").unwrap().as_integer().unwrap();
 
         Ok(DocumentConfig {
-            fonts,
+            fonts: (Prehashed::new(font_book), fonts),
             style,
             assets,
             datetime_offset,
@@ -64,15 +66,21 @@ impl<'a> DocumentConfig {
     }
 }
 
-// TODO    Import fonts from directory
-fn import_fonts(fonts_dir: &PathBuf) -> Result<(Prehashed<FontBook>, Vec<Font>), Errcode> {
-    // let fonts = fonts_dir
-    //     .files()
-    //     .flat_map(|file| Font::iter(file.contents().into()))
-    //     .collect();
-    // let book = FontBook::from_fonts(&fonts);
-    // (Prehashed::new(book), fonts)
-    todo!();
+fn import_fonts(fonts_dir: &PathBuf) -> Result<Vec<Font>, Errcode> {
+    assert!(fonts_dir.is_dir());
+    let mut all_fonts = vec![];
+    for font_file in std::fs::read_dir(fonts_dir)? {
+        let font_file = font_file?;
+        let ftype = font_file.file_type()?;
+        if ftype.is_dir() {
+            all_fonts.extend(import_fonts(&font_file.path())?);
+        } else {
+            // File or symlink
+            let data = std::fs::read(font_file.path())?;
+            all_fonts.extend(Font::iter(Bytes::from(data)));
+        }
+    }
+    Ok(all_fonts)
 }
 
 // TODO    Import assets from directory
