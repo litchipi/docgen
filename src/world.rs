@@ -1,89 +1,74 @@
-use std::path::PathBuf;
+// pub fn get_fonts(fonts_dir: &PathBuf) -> (Prehashed<FontBook>, Vec<Font>) {
+//     todo!();
+//     // let fonts = fonts_dir
+//     //     .files()
+//     //     .flat_map(|file| Font::iter(file.contents().into()))
+//     //     .collect();
+//     // let book = FontBook::from_fonts(&fonts);
+//     // (Prehashed::new(book), fonts)
+// }
+
+// pub fn get_asset(assets_dir: &PathBuf, path: &Path) -> FileResult<Bytes> {
+//     println!("Getting file {:?}", path);
+//     todo!();
+//     // Ok(assets_dir
+//     //     .get_file(path)
+//     //     .unwrap_or_else(|| panic!("failed to load {:?}", id.vpath()))
+//     //     .contents()
+//     //     .into())
+// }
+
+// pub fn get_date(offset: Option<i64>) -> Option<Datetime> {
+//     Some(Datetime::from_ymd(1970, 1, 1).unwrap())
+// }
 
 use comemo::Prehashed;
-use include_dir::{include_dir, Dir};
-use once_cell::sync::Lazy;
-
 use typst::diag::FileResult;
-use typst::foundations::{Bytes, Datetime, Smart};
-use typst::layout::{Abs, Margin, PageElem};
-use typst::syntax::{FileId, Source, VirtualPath};
-use typst::text::{Font, FontBook};
-use typst::{Library, World};
+use typst::foundations::{Bytes, Datetime};
+use typst::syntax::{Source, FileId};
+use typst::text::{FontBook, Font};
+use typst::{World, Library};
 
-static LIBRARY: Lazy<Prehashed<Library>> = Lazy::new(|| {
-    let mut lib = Library::default();
-    lib.styles
-        .set(PageElem::set_width(Smart::Custom(Abs::pt(240.0).into())));
-    lib.styles.set(PageElem::set_height(Smart::Auto));
-    lib.styles
-        .set(PageElem::set_margin(Margin::splat(Some(Smart::Custom(
-            Abs::pt(15.0).into(),
-        )))));
-    Prehashed::new(lib)
-});
+use crate::doc_config::DocumentConfig;
+use crate::doctype::DocumentType;
 
-static ASSETS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/");
-
-static FONT_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/fonts");
-
-static FONTS: Lazy<(Prehashed<FontBook>, Vec<Font>)> = Lazy::new(|| {
-    let fonts: Vec<_> = FONT_DIR
-        .files()
-        .flat_map(|file| Font::iter(file.contents().into()))
-        .collect();
-    let book = FontBook::from_fonts(&fonts);
-    (Prehashed::new(book), fonts)
-});
-
-// TODO
-static INVOICE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/invoices");
-
-pub struct InvoiceWorld(Source);
-
-impl InvoiceWorld {
-    pub fn new(inpf: PathBuf) -> InvoiceWorld {
-        let id = FileId::new(None, VirtualPath::new(&inpf));
-        let text = std::fs::read_to_string(inpf).unwrap();
-        println!("{text}");
-        InvoiceWorld(Source::new(id, text))
-    }
+pub struct TypstWorld<'a> {
+    config: &'a DocumentConfig,
+    doctype: DocumentType,
+    source: Source,
 }
 
-impl World for InvoiceWorld {
-    fn library(&self) -> &Prehashed<Library> {
-        &LIBRARY
+// TODO    Use this instead of specific world for specific doctype
+impl<'a> World for TypstWorld<'a> {
+    fn library(&self) ->  &Prehashed<Library>  {
+        self.config.get_library(&self.doctype)
     }
 
-    fn book(&self) -> &Prehashed<FontBook> {
-        &FONTS.0
+    fn book(&self) ->  &Prehashed<FontBook>  {
+        self.config.get_font_book()
     }
 
     fn main(&self) -> Source {
-        self.0.clone()
+        self.source.clone()
     }
 
-    fn source(&self, _: FileId) -> FileResult<Source> {
-        Ok(self.0.clone())
+    fn source(&self, id:FileId) -> FileResult<Source>  {
+        // TODO    assert that this should never get called ?
+        Ok(self.main())
     }
 
-    // TODO
-    fn file(&self, id: FileId) -> FileResult<Bytes> {
-        assert!(id.package().is_none());
-        println!("Getting file {:?}", id.vpath());
-        Ok(ASSETS_DIR
-            .get_file(id.vpath().as_rootless_path())
-            .unwrap_or_else(|| panic!("failed to load {:?}", id.vpath()))
-            .contents()
-            .into())
+    fn file(&self,id:FileId) -> FileResult<Bytes>  {
+        // TODO    Get an asset
+        todo!()
     }
 
-    fn font(&self, index: usize) -> Option<Font> {
-        Some(FONTS.1[index].clone())
+    fn font(&self,index:usize) -> Option<Font>  {
+        // TODO    Get a font
+        todo!()
     }
 
-    // TODO
-    fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
-        Some(Datetime::from_ymd(1970, 1, 1).unwrap())
+    fn today(&self,offset:Option<i64>) -> Option<Datetime>  {
+        // TODO    Get the datetime
+        todo!()
     }
 }
