@@ -13,3 +13,10 @@ pub fn setup_default_style(lib: &mut Library, config: &ConfigStore) {
 pub fn setup_style(lib: &mut Library, docstyle: &Value) -> Result<(), Errcode> {
     Ok(())
 }
+
+// TODO    Initialize stylesheet content with default style in comments for each doctype
+pub fn init_stylesheet_content() -> String {
+    let mut content = "".to_string();
+    content += "# Stylesheet";
+    content
+}

@@ -414,6 +414,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "docgen"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "comemo",
+ "include_dir",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
+ "typst",
+ "typst-pdf",
+]
+
+[[package]]
 name = "downcast-rs"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -804,21 +820,6 @@ name = "indexmap-nostd"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
-
-[[package]]
-name = "invoice_creator"
-version = "0.1.0"
-dependencies = [
- "clap",
- "comemo",
- "include_dir",
- "once_cell",
- "serde",
- "thiserror",
- "toml",
- "typst",
- "typst-pdf",
-]
 
 [[package]]
 name = "itoa"
@@ -1316,9 +1317,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.110"
+version = "1.0.111"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fbd975230bada99c8bb618e0c365c2eefa219158d5c6c29610fd09ff1833257"
+checksum = "176e46fa42316f18edd598015a5166857fc835ec732f5215eac6b7bdbf0a84f4"
 dependencies = [
  "itoa",
  "ryu",

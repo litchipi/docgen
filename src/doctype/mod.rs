@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::errors::Errcode;
 
 pub mod invoice;
@@ -12,9 +14,12 @@ pub enum DocumentType {
 }
 
 impl DocumentType {
-    pub fn generate_typst(&self) -> Result<String, Errcode> {
+    pub fn generate_typst(&self, history: &PathBuf) -> Result<String, Errcode> {
+        if !history.exists() {
+            std::fs::create_dir(history)?;
+        }
         match self {
-            DocumentType::Invoice => invoice::InvoiceBuilder::generate(),
+            DocumentType::Invoice => invoice::InvoiceBuilder::generate(history.join("invoice.json")),
         }
     }
 

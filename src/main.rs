@@ -14,23 +14,29 @@ use world::TypstWorld;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(short, long)]
+    #[arg()]
     doctype: String,
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value="./out.pdf")]
     outfile: PathBuf,
 
     #[arg(short, long)]
-    config_file: PathBuf,
+    root_dir: Option<PathBuf>,
+}
 
-    #[arg(short, long)]
-    fonts_dir: PathBuf,
-
-    #[arg(short, long)]
-    assets_dir: PathBuf,
-
-    #[arg(short, long)]
-    style_sheet: PathBuf,
+impl Args {
+    fn get_root(&self) -> PathBuf {
+        if let Some(ref root) = self.root_dir {
+            root.clone()
+        } else {
+            if let Ok(root) = std::env::var("DOCGEN_ROOT") {
+                root.into()
+            } else {
+                panic!("Root directory must be set using --root-dir or the DOCGEN_ROOT env var");
+            }
+        }
+        
+    }
 }
 
 fn export(outfile: &PathBuf, document: &Document) -> Result<(), Errcode> {
@@ -42,15 +48,19 @@ fn export(outfile: &PathBuf, document: &Document) -> Result<(), Errcode> {
 fn main() {
     println!("[*] Getting the configuration");
     let args = Args::parse();
+    let root = args.get_root();
+    if !root.exists() {
+        std::fs::create_dir(&root).expect("Unable to create root directory");
+    }
     let doctype: DocumentType = (&args.doctype).try_into().unwrap();
 
     println!("[*] Generating the source code");
     let source = doctype
-        .generate_typst()
+        .generate_typst(&root.join("history"))
         .expect("Unable to generate typst code");
 
     println!("[*] Initializing Typst compilation context");
-    let world = TypstWorld::new(&args, source).expect("Unable to create Typst context");
+    let world = TypstWorld::new(&root, doctype, source).expect("Unable to create Typst context");
 
     println!("[*] Compiling the source code");
     let doc = world.compile().expect("Unable to compile generated typst code");

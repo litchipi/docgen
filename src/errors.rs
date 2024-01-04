@@ -6,6 +6,7 @@ pub enum Errcode {
     IoError(#[from] std::io::Error),
     TomlDecode(#[from] toml::de::Error),
     PathPrefixStrip(#[from] std::path::StripPrefixError),
+    JsonDecode(#[from] serde_json::Error),
 }
 
 impl std::fmt::Display for Errcode {
