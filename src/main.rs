@@ -12,6 +12,7 @@ mod doc_config;
 
 use doctype::DocumentType;
 use errors::Errcode;
+use world::TypstWorld;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -34,10 +35,9 @@ struct Args {
     style_sheet: PathBuf,
 }
 
-fn compile_typst(doc_config: &DocumentConfig, doctype: &DocumentType, source: String) -> Result<Document, Errcode> {
+fn compile_typst(source: TypstWorld) -> Result<Document, Errcode> {
     let mut tracer = Tracer::new();
-    let world = doctype.generate_world(doc_config, source);
-    let document = typst::compile(world.as_ref(), &mut tracer).unwrap();
+    let document = typst::compile(&source, &mut tracer).unwrap();
     for warn in tracer.warnings() {
         println!("WARN {:?}", warn);
     }
@@ -56,7 +56,7 @@ fn main() {
     let Args { doctype, outfile , ..} = args;
     let doctype: DocumentType = doctype.try_into().unwrap();
 
-    let source = doctype.dispatch().expect("Unable to generate typst code");
-    let doc = compile_typst(&doc_config, &doctype, source).expect("Unable to compile generated typst code");
+    let source = doctype.generate_typst(&doc_config).expect("Unable to generate typst code");
+    let doc = compile_typst(source).expect("Unable to compile generated typst code");
     export(&outfile, &doc).expect("Unable to export to file")
 }

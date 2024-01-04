@@ -1,13 +1,11 @@
-use typst::World;
-
-use crate::{errors::Errcode, doc_config::DocumentConfig};
+use crate::{errors::Errcode, doc_config::DocumentConfig, world::TypstWorld};
 
 pub mod invoice;
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq)]
 pub enum DocumentType {
     Invoice,
-    // TODO
+    // TODO Other document types
     // - devis
     // - contracts
     // - letter
@@ -23,16 +21,10 @@ impl TryFrom<String> for DocumentType {
     }
 }
 
-impl DocumentType {
-    pub fn dispatch(&self) -> Result<String, Errcode> {
+impl<'a> DocumentType {
+    pub fn generate_typst(&'a self, config: &'a DocumentConfig) -> Result<TypstWorld, Errcode> {
         match self {
-            DocumentType::Invoice => invoice::generate_invoice(),
-        }
-    }
-
-    pub fn generate_world(&self, doc_config: &DocumentConfig, source: String) -> Box<dyn World> {
-        match self {
-            DocumentType::Invoice => Box::new(invoice::InvoiceWorld::new(doc_config, source)),
+            DocumentType::Invoice => invoice::generate(config),
         }
     }
 }

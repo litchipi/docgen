@@ -33,12 +33,11 @@ use crate::doc_config::DocumentConfig;
 use crate::doctype::DocumentType;
 
 pub struct TypstWorld<'a> {
-    config: &'a DocumentConfig,
-    doctype: DocumentType,
-    source: Source,
+    pub config: &'a DocumentConfig,
+    pub doctype: DocumentType,
+    pub source: Source,
 }
 
-// TODO    Use this instead of specific world for specific doctype
 impl<'a> World for TypstWorld<'a> {
     fn library(&self) ->  &Prehashed<Library>  {
         self.config.get_library(&self.doctype)
@@ -52,22 +51,22 @@ impl<'a> World for TypstWorld<'a> {
         self.source.clone()
     }
 
-    fn source(&self, id:FileId) -> FileResult<Source>  {
+    fn source(&self, id: FileId) -> FileResult<Source>  {
         // TODO    assert that this should never get called ?
         Ok(self.main())
     }
 
-    fn file(&self,id:FileId) -> FileResult<Bytes>  {
+    fn file(&self, id: FileId) -> FileResult<Bytes>  {
         // TODO    Get an asset
         todo!()
     }
 
-    fn font(&self,index:usize) -> Option<Font>  {
+    fn font(&self, index: usize) -> Option<Font>  {
         // TODO    Get a font
         todo!()
     }
 
-    fn today(&self,offset:Option<i64>) -> Option<Datetime>  {
+    fn today(&self, offset: Option<i64>) -> Option<Datetime>  {
         // TODO    Get the datetime
         todo!()
     }

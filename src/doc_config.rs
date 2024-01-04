@@ -9,7 +9,6 @@ use crate::Args;
 use crate::doctype::DocumentType;
 use crate::errors::Errcode;
 
-// TODO    Rename this
 pub struct DocumentConfig {
     style: HashMap<DocumentType, Prehashed<Library>>,
     assets: HashMap<DocumentType, HashMap<String, Bytes>>,
