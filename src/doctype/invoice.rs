@@ -31,8 +31,11 @@ impl<'a> InvoiceBuilder<'a> {
     }
 
     pub fn generate_invoice(&mut self) -> Result<(), Errcode> {
+        self.source += "= Some title\n";
+        self.source += "Some text\nOther text";
         // TODO    Generate the code for the invoice type
         //    Store inside the self.source buffer
+        self.source += "\n";
         Ok(())
     }
 }

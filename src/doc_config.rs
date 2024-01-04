@@ -28,7 +28,7 @@ impl TryFrom<&Args> for DocumentConfig {
         let assets = import_assets(&args.assets_dir)?;
         let config = import_config(&args.config_file)?;
         let style = import_style(&args.style_sheet, &config)?;
-        let datetime_offset = config.get("datetime_offset").unwrap().as_integer().unwrap();
+        let datetime_offset = 0; //config.get("datetime_offset").unwrap().as_integer().unwrap();
 
         Ok(DocumentConfig {
             fonts: (Prehashed::new(font_book), fonts),
@@ -90,7 +90,8 @@ fn import_assets(
     assets_dir: &PathBuf,
 ) -> Result<HashMap<DocumentType, HashMap<PathBuf, Bytes>>, Errcode> {
     // TODO    Must assert that all DocumentType variants are represented in the hashmap
-    Ok(HashMap::new())
+    let mut store = DocumentType::init_empty_store(HashMap::new());
+    Ok(store)
 }
 
 // TODO    Import configuration from file
@@ -107,5 +108,6 @@ fn import_style(
     stylesheet: &PathBuf,
     config: &HashMap<String, toml::Value>,
 ) -> Result<HashMap<DocumentType, Prehashed<Library>>, Errcode> {
-    Ok(HashMap::new())
+    let mut store = DocumentType::init_empty_store(Prehashed::new(Library::default()));
+    Ok(store)
 }

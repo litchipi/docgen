@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{doc_config::DocumentConfig, errors::Errcode, world::TypstWorld};
 
 pub mod invoice;
@@ -15,7 +17,8 @@ impl TryFrom<String> for DocumentType {
     type Error = Errcode;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
+        match value.to_lowercase().as_str() {
+            "invoice" => Ok(DocumentType::Invoice),
             _ => Err(Errcode::DocTypeUnsupported(value)),
         }
     }
@@ -26,5 +29,11 @@ impl<'a> DocumentType {
         match self {
             DocumentType::Invoice => invoice::generate(config),
         }
+    }
+
+    pub fn init_empty_store<T: Clone>(init_val: T) -> HashMap<DocumentType, T> {
+        let mut store = HashMap::new();
+        store.insert(DocumentType::Invoice, init_val.clone());
+        store
     }
 }

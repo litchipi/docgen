@@ -51,6 +51,7 @@ fn export(outfile: &PathBuf, document: &Document) -> Result<(), Errcode> {
 }
 
 fn main() {
+    println!("[*] Getting the configuration");
     let args = Args::parse();
     let doc_config = DocumentConfig::try_from(&args).unwrap();
     let Args {
@@ -58,9 +59,14 @@ fn main() {
     } = args;
     let doctype: DocumentType = doctype.try_into().unwrap();
 
+    println!("[*] Generating the source code");
     let source = doctype
         .generate_typst(&doc_config)
         .expect("Unable to generate typst code");
+
+    println!("[*] Compiling the source code");
     let doc = compile_typst(source).expect("Unable to compile generated typst code");
-    export(&outfile, &doc).expect("Unable to export to file")
+
+    println!("[*] Rendering the PDF file");
+    export(&outfile, &doc).expect("Unable to export to file");
 }
