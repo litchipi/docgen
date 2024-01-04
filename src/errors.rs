@@ -4,6 +4,8 @@ use thiserror::Error;
 pub enum Errcode {
     DocTypeUnsupported(String),
     IoError(#[from] std::io::Error),
+    TomlDecode(#[from] toml::de::Error),
+    PathPrefixStrip(#[from] std::path::StripPrefixError),
 }
 
 impl std::fmt::Display for Errcode {

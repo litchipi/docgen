@@ -1,47 +1,23 @@
-use typst::syntax::{FileId, Source, VirtualPath};
-
-use crate::doc_config::DocumentConfig;
 use crate::errors::Errcode;
-use crate::world::TypstWorld;
 
-use super::DocumentType;
-
-pub struct InvoiceBuilder<'a> {
+#[derive(Default)]
+pub struct InvoiceBuilder {
     source: String,
-    config: &'a DocumentConfig,
 }
 
-impl<'a> Into<TypstWorld<'a>> for InvoiceBuilder<'a> {
-    fn into(self) -> TypstWorld<'a> {
-        let InvoiceBuilder { source, config } = self;
-        TypstWorld {
-            config,
-            source: Source::new(FileId::new(None, VirtualPath::new("/source")), source),
-            doctype: DocumentType::Invoice,
-        }
-    }
-}
-
-impl<'a> InvoiceBuilder<'a> {
-    pub fn new(config: &'a DocumentConfig) -> InvoiceBuilder {
-        InvoiceBuilder {
-            source: String::new(),
-            config,
-        }
+impl InvoiceBuilder {
+    pub fn generate() -> Result<String, Errcode> {
+        InvoiceBuilder::default().generate_invoice()
     }
 
-    pub fn generate_invoice(&mut self) -> Result<(), Errcode> {
+    pub fn generate_invoice(mut self) -> Result<String, Errcode> {
         self.source += "= Some title\n";
-        self.source += "Some text\nOther text";
+        self.source += "Some text\nOther text\n";
+        self.source += "#figure(\n\timage(\"invoice/molecular.jpg\", width: 80%),\n";
+        self.source += "caption: [ A test ],\n)\n";
         // TODO    Generate the code for the invoice type
         //    Store inside the self.source buffer
         self.source += "\n";
-        Ok(())
+        Ok(self.source)
     }
-}
-
-pub fn generate<'a>(config: &'a DocumentConfig) -> Result<TypstWorld<'a>, Errcode> {
-    let mut builder = InvoiceBuilder::new(config);
-    builder.generate_invoice()?;
-    Ok(builder.into())
 }

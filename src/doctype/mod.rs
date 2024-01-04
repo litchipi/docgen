@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
-use crate::{doc_config::DocumentConfig, errors::Errcode, world::TypstWorld};
+use crate::errors::Errcode;
 
 pub mod invoice;
 
-#[derive(Hash, Debug, Clone, Eq, PartialEq)]
+#[derive(Hash, Debug, Clone, Eq, PartialEq, Copy)]
 pub enum DocumentType {
     Invoice,
     // TODO Other document types
@@ -13,27 +11,27 @@ pub enum DocumentType {
     // - letter
 }
 
-impl TryFrom<String> for DocumentType {
-    type Error = Errcode;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.to_lowercase().as_str() {
-            "invoice" => Ok(DocumentType::Invoice),
-            _ => Err(Errcode::DocTypeUnsupported(value)),
+impl DocumentType {
+    pub fn generate_typst(&self) -> Result<String, Errcode> {
+        match self {
+            DocumentType::Invoice => invoice::InvoiceBuilder::generate(),
         }
+    }
+
+    pub fn all_variants() -> Vec<(DocumentType, &'static str)> {
+        vec![
+            (DocumentType::Invoice, "invoice"),
+        ]
     }
 }
 
-impl<'a> DocumentType {
-    pub fn generate_typst(&'a self, config: &'a DocumentConfig) -> Result<TypstWorld, Errcode> {
-        match self {
-            DocumentType::Invoice => invoice::generate(config),
-        }
-    }
+impl TryFrom<&String> for DocumentType {
+    type Error = Errcode;
 
-    pub fn init_empty_store<T: Clone>(init_val: T) -> HashMap<DocumentType, T> {
-        let mut store = HashMap::new();
-        store.insert(DocumentType::Invoice, init_val.clone());
-        store
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        match value.to_lowercase().as_str() {
+            "invoice" => Ok(DocumentType::Invoice),
+            _ => Err(Errcode::DocTypeUnsupported(value.clone())),
+        }
     }
 }

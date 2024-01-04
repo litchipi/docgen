@@ -1,14 +1,12 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use doc_config::DocumentConfig;
-use typst::eval::Tracer;
 use typst::model::Document;
 
-mod doc_config;
 mod doctype;
 mod errors;
 mod world;
+mod style;
 
 use doctype::DocumentType;
 use errors::Errcode;
@@ -35,15 +33,6 @@ struct Args {
     style_sheet: PathBuf,
 }
 
-fn compile_typst(source: TypstWorld) -> Result<Document, Errcode> {
-    let mut tracer = Tracer::new();
-    let document = typst::compile(&source, &mut tracer).unwrap();
-    for warn in tracer.warnings() {
-        println!("WARN {:?}", warn);
-    }
-    Ok(document)
-}
-
 fn export(outfile: &PathBuf, document: &Document) -> Result<(), Errcode> {
     let res = typst_pdf::pdf(document, None, None);
     std::fs::write(&outfile, res)?;
@@ -53,20 +42,19 @@ fn export(outfile: &PathBuf, document: &Document) -> Result<(), Errcode> {
 fn main() {
     println!("[*] Getting the configuration");
     let args = Args::parse();
-    let doc_config = DocumentConfig::try_from(&args).unwrap();
-    let Args {
-        doctype, outfile, ..
-    } = args;
-    let doctype: DocumentType = doctype.try_into().unwrap();
+    let doctype: DocumentType = (&args.doctype).try_into().unwrap();
 
     println!("[*] Generating the source code");
     let source = doctype
-        .generate_typst(&doc_config)
+        .generate_typst()
         .expect("Unable to generate typst code");
 
+    println!("[*] Initializing Typst compilation context");
+    let world = TypstWorld::new(&args, source).expect("Unable to create Typst context");
+
     println!("[*] Compiling the source code");
-    let doc = compile_typst(source).expect("Unable to compile generated typst code");
+    let doc = world.compile().expect("Unable to compile generated typst code");
 
     println!("[*] Rendering the PDF file");
-    export(&outfile, &doc).expect("Unable to export to file");
+    export(&args.outfile, &doc).expect("Unable to export to file");
 }
