@@ -3,6 +3,8 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Errcode {
     DocTypeUnsupported(String),
+    InvalidData(&'static str),
+
     IoError(#[from] std::io::Error),
     TomlDecode(#[from] toml::de::Error),
     PathPrefixStrip(#[from] std::path::StripPrefixError),

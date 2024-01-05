@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use comemo::Prehashed;
 use toml::map::Map;
-use typst::diag::{FileResult, FileError};
+use typst::diag::{FileError, FileResult};
 use typst::eval::Tracer;
 use typst::foundations::{Bytes, Datetime};
 use typst::model::Document;
@@ -13,37 +13,39 @@ use typst::{Library, World};
 
 use crate::doctype::DocumentType;
 use crate::errors::Errcode;
-use crate::style::{setup_style, setup_default_style, init_stylesheet_content};
+use crate::style::generate_style_variables;
 
 type AssetStore = HashMap<PathBuf, Bytes>;
-type StyleStore = HashMap<DocumentType, Prehashed<Library>>;
 pub type ConfigStore = Map<String, toml::Value>;
 
 pub struct TypstWorld {
-    // pub config: &'a DocumentConfig,
-    doctype: DocumentType,
     source: Source,
-    style: StyleStore,
     assets: AssetStore,
     fonts: (Prehashed<FontBook>, Vec<Font>),
+    library: Prehashed<Library>,
 }
 
 impl TypstWorld {
-    pub fn new(root: &PathBuf, doctype: DocumentType, source: String) -> Result<TypstWorld, Errcode> {
+    pub fn new(
+        root: &PathBuf,
+        doctype: DocumentType,
+        source: String,
+    ) -> Result<TypstWorld, Errcode> {
         let fonts = import_fonts(&root.join("fonts"))?;
         let font_book = FontBook::from_fonts(&fonts);
         let assets_dir = root.join("assets");
         let assets = import_assets(&assets_dir, &assets_dir)?;
         let config = import_config(&root.join("config.toml"))?;
-        let style = import_style(&root.join("style.toml"), &config)?;
         let source_id = FileId::new(None, VirtualPath::new("/source"));
+        let style_vars =
+            generate_style_variables(&config, &root.join("style.toml"), doctype.to_string())?;
+        let source = Source::new(source_id, format!("{style_vars}\n{source}\n"));
 
         Ok(TypstWorld {
-            source: Source::new(source_id, source),
-            doctype,
+            source,
             fonts: (Prehashed::new(font_book), fonts),
-            style,
             assets,
+            library: Prehashed::new(Library::default()),
         })
     }
 
@@ -59,7 +61,7 @@ impl TypstWorld {
 
 impl World for TypstWorld {
     fn library(&self) -> &Prehashed<Library> {
-        self.style.get(&self.doctype).unwrap()
+        &self.library
     }
 
     fn book(&self) -> &Prehashed<FontBook> {
@@ -96,7 +98,10 @@ impl World for TypstWorld {
 fn import_fonts(fonts_dir: &PathBuf) -> Result<Vec<Font>, Errcode> {
     if !fonts_dir.exists() {
         std::fs::create_dir(fonts_dir)?;
-        std::fs::write(fonts_dir.join("default.ttf"), include_bytes!("../default_font.ttf"))?;
+        std::fs::write(
+            fonts_dir.join("default.ttf"),
+            include_bytes!("../default_font.ttf"),
+        )?;
     }
     assert!(fonts_dir.is_dir());
     let mut all_fonts = vec![];
@@ -114,10 +119,7 @@ fn import_fonts(fonts_dir: &PathBuf) -> Result<Vec<Font>, Errcode> {
     Ok(all_fonts)
 }
 
-fn import_assets(
-    root: &PathBuf,
-    assets_dir: &PathBuf,
-) -> Result<AssetStore, Errcode> {
+fn import_assets(root: &PathBuf, assets_dir: &PathBuf) -> Result<AssetStore, Errcode> {
     if !assets_dir.exists() {
         std::fs::create_dir(assets_dir)?;
     }
@@ -130,7 +132,11 @@ fn import_assets(
 
         if ftype.is_dir() {
             for (path, data) in import_assets(root, &asset_file.path())? {
-                let key_path = assets_dir.join(path).as_path().strip_prefix(root)?.to_path_buf();
+                let key_path = assets_dir
+                    .join(path)
+                    .as_path()
+                    .strip_prefix(root)?
+                    .to_path_buf();
                 store.insert(key_path, data);
             }
         } else {
@@ -145,15 +151,15 @@ fn import_assets(
 
 fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {
     let default_config_str = include_str!("../default_config.toml");
-    let default_config : toml::Value = toml::from_str(default_config_str)?;
+    let default_config: toml::Value = toml::from_str(default_config_str)?;
     let default_config = default_config.as_table().unwrap().to_owned();
     if !config_file.exists() {
         std::fs::write(config_file, default_config_str)?;
         return Ok(default_config);
     }
     assert!(config_file.is_file());
-    
-    let config : toml::Value = toml::from_str(std::fs::read_to_string(config_file)?.as_str())?;
+
+    let config: toml::Value = toml::from_str(std::fs::read_to_string(config_file)?.as_str())?;
     let mut config = config.as_table().unwrap().to_owned();
     for (key, val) in default_config.into_iter() {
         if !config.contains_key(&key) {
@@ -161,31 +167,4 @@ fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {
         }
     }
     Ok(config)
-}
-
-fn import_style(
-    stylesheet: &PathBuf,
-    config: &ConfigStore,
-) -> Result<StyleStore, Errcode> {
-    let style = if !stylesheet.exists() {
-        std::fs::write(stylesheet, init_stylesheet_content())?;
-        Map::new()
-    } else {
-        let style : toml::Value = toml::from_str(std::fs::read_to_string(stylesheet)?.as_str())?;
-        style.as_table().unwrap().to_owned()
-    };
-
-    assert!(stylesheet.is_file());
-    let mut store = HashMap::new();
-
-    for (doctype, dockey) in DocumentType::all_variants().iter() {
-        let mut lib = Library::default();
-        setup_default_style(&mut lib, config);
-        if let Some(docstyle) = style.get(*dockey) {
-            setup_style(&mut lib, docstyle)?;
-        }
-        store.insert(*doctype, Prehashed::new(lib));
-    }
-
-    Ok(store)
 }

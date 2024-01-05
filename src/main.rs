@@ -3,10 +3,12 @@ use std::path::PathBuf;
 use clap::Parser;
 use typst::model::Document;
 
+mod codegen;
 mod doctype;
 mod errors;
-mod world;
 mod style;
+mod utils;
+mod world;
 
 use doctype::DocumentType;
 use errors::Errcode;
@@ -17,7 +19,7 @@ struct Args {
     #[arg()]
     doctype: String,
 
-    #[arg(short, long, default_value="./out.pdf")]
+    #[arg(short, long, default_value = "./out.pdf")]
     outfile: PathBuf,
 
     #[arg(short, long)]
@@ -35,7 +37,6 @@ impl Args {
                 panic!("Root directory must be set using --root-dir or the DOCGEN_ROOT env var");
             }
         }
-        
     }
 }
 
@@ -56,14 +57,16 @@ fn main() {
 
     println!("[*] Generating the source code");
     let source = doctype
-        .generate_typst(&root.join("history"))
+        .generate_typst(&root.join("data"))
         .expect("Unable to generate typst code");
 
     println!("[*] Initializing Typst compilation context");
     let world = TypstWorld::new(&root, doctype, source).expect("Unable to create Typst context");
 
     println!("[*] Compiling the source code");
-    let doc = world.compile().expect("Unable to compile generated typst code");
+    let doc = world
+        .compile()
+        .expect("Unable to compile generated typst code");
 
     println!("[*] Rendering the PDF file");
     export(&args.outfile, &doc).expect("Unable to export to file");
