@@ -26,3 +26,14 @@ pub fn ask_user_nonempty<T: Display>(question: T) -> String {
     }
     res.trim().to_string()
 }
+
+pub fn map_get_str_or_ask<T: Display>(map: &serde_json::Map<String, serde_json::Value>, slug: &str, question: T, non_empty: bool) -> String {
+    match map.get(slug).map(|n| n.as_str()).flatten() {
+        Some(n) => n.to_string(),
+        None => if non_empty {
+            ask_user_nonempty(question)
+        } else {
+            ask_user(question)
+        }
+    }
+}
