@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::errors::Errcode;
+use crate::{errors::Errcode, utils::LangDict};
 
 pub mod invoice;
 
@@ -25,13 +25,13 @@ pub enum DocumentType {
 }
 
 impl DocumentType {
-    pub fn generate_typst(&self, datadir: &PathBuf) -> Result<TypstData, Errcode> {
+    pub fn generate_typst(&self, lang: LangDict, datadir: &PathBuf) -> Result<TypstData, Errcode> {
         if !datadir.exists() {
             std::fs::create_dir(datadir)?;
         }
         let dataf = datadir.join(self.to_string()).with_extension(".json");
         match self {
-            DocumentType::Invoice => invoice::InvoiceBuilder::generate(dataf),
+            DocumentType::Invoice => invoice::InvoiceBuilder::generate(lang, dataf),
         }
     }
 }

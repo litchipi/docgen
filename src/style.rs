@@ -4,11 +4,14 @@ use toml::{map::Map, Value};
 
 use crate::{errors::Errcode, world::ConfigStore};
 
-const NO_QUOTE_LIST: &[&str] = &["pt", "%"];
+const NO_QUOTE_LIST: &[&str] = &["pt", "%", "fr"];
+const FCT_LIST: &[&str] = &["rgb"];
 
 fn to_typst(val: &Value) -> String {
     if let Value::String(s) = val {
-        if NO_QUOTE_LIST.iter().any(|suff| s.ends_with(suff)) {
+        if FCT_LIST.iter().any(|pref| s.starts_with(pref)) {
+            s.clone()
+        } else if NO_QUOTE_LIST.iter().any(|suff| s.ends_with(suff)) {
             s.clone()
         } else {
             val.to_string()
@@ -21,6 +24,8 @@ fn to_typst(val: &Value) -> String {
 fn get_default_invoice_style() -> Map<String, Value> {
     let mut style = Map::new();
     style.insert("company_name_font_size".into(), "23pt".into());
+    style.insert("table_color".into(), "rgb(110, 140, 180, 205)".into());
+    style.insert("tx_descr_width".into(), "3fr".into());
     style
 }
 

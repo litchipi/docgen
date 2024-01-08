@@ -52,11 +52,18 @@ impl TypstWorld {
 
     pub fn compile(&self) -> Result<Document, Errcode> {
         let mut tracer = Tracer::new();
-        let document = typst::compile(self, &mut tracer).unwrap();
-        for warn in tracer.warnings() {
-            println!("WARN {:?}", warn);
+        match typst::compile(self, &mut tracer) {
+            Ok(document) => {
+                for warn in tracer.warnings() {
+                    println!("WARN {:?}", warn);
+                }
+                Ok(document)
+            },
+            Err(e) => {
+                println!("Source code:\n{}", self.main().text());
+                panic!("Typst compilation error: {e:?}");
+            }
         }
-        Ok(document)
     }
 }
 
@@ -105,7 +112,7 @@ fn import_fonts(fonts_dir: &PathBuf) -> Result<Vec<Font>, Errcode> {
         std::fs::create_dir(fonts_dir)?;
         std::fs::write(
             fonts_dir.join("default.ttf"),
-            include_bytes!("../default_font.ttf"),
+            include_bytes!("../default/font.ttf"),
         )?;
     }
     assert!(fonts_dir.is_dir());
@@ -155,7 +162,7 @@ fn import_assets(root: &PathBuf, assets_dir: &PathBuf) -> Result<AssetStore, Err
 }
 
 fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {
-    let default_config_str = include_str!("../default_config.toml");
+    let default_config_str = include_str!("../default/config.toml");
     let default_config: toml::Value = toml::from_str(default_config_str)?;
     let default_config = default_config.as_table().unwrap().to_owned();
     if !config_file.exists() {

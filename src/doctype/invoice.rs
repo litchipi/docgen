@@ -2,12 +2,12 @@ use std::{path::PathBuf, collections::HashMap};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use chrono::{Utc, Datelike};
+use chrono::{Utc, DateTime};
 
 use crate::{
     codegen::{sanitize, write_page_settings},
     errors::Errcode,
-    utils::{ask_user, ask_user_nonempty, map_get_str_or_ask, get_month_name},
+    utils::{ask_user, ask_user_nonempty, map_get_str_or_ask, LangDict, ask_user_parse},
 };
 
 use super::TypstData;
@@ -30,6 +30,7 @@ impl InvoiceSavedData {
         let email = ask_user("Enter the email of your company: ");
         let legal_status = ask_user_nonempty("Enter the legal status of your company: ");
         let siret_number = ask_user_nonempty("Enter the SIRET number of your company: ");
+        println!("");
         InvoiceSavedData {
             company_name,
             address,
@@ -86,10 +87,11 @@ impl InvoiceSavedData {
 
 pub struct InvoiceBuilder {
     data: InvoiceSavedData,
+    lang: LangDict,
 }
 
 impl InvoiceBuilder {
-    pub fn generate(datafile: PathBuf) -> Result<TypstData, Errcode> {
+    pub fn generate(lang: LangDict, datafile: PathBuf) -> Result<TypstData, Errcode> {
         let history = if !datafile.is_file() {
             InvoiceSavedData::init()
         } else {
@@ -105,7 +107,7 @@ impl InvoiceBuilder {
                 }
             }
         };
-        let mut builder = InvoiceBuilder { data: history };
+        let mut builder = InvoiceBuilder { lang, data: history };
         let (fname, result) = builder.generate_invoice()?;
         std::fs::write(datafile, serde_json::to_string_pretty(&builder.data)?)?;
         Ok(TypstData::new(fname, result))
@@ -113,8 +115,8 @@ impl InvoiceBuilder {
 
     // TODO    Generate an invoice
     pub fn generate_invoice(&mut self) -> Result<(String, String), Errcode> {
+        // Getting necessary data before writing the code
         let (rec_slug, rec_name, rec_addr) = self.data.get_recipient_data();
-        let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
         self.data.invoice_total_count += 1;
         let current_date = Utc::now();
 
@@ -125,9 +127,21 @@ impl InvoiceBuilder {
 
         let mut source = "".to_string();
         write_page_settings(&mut source);
+        self.generate_header(&mut source);
+        source += "#v(sep_par())\n";
+        self.generate_metadata(&mut source, &current_date, rec_name, rec_addr);
+        source += "#v(sep_par())\n";
+        self.generate_transaction_table(&mut source);
+        source += "#v(sep_par())\n";
+
+        source += "\n";
+        Ok((fname, source))
+    }
+
+    fn generate_header(&self, source: &mut String) {
         // TODO    Add the logo
-        source += "#let sep_par() = 28pt\n";
-        source += format!(
+        *source += "#let sep_par() = 28pt\n";
+        *source += format!(
             "#grid(
             columns: (1fr, auto),
             align(left, text(company_name_font_size())[{}]),
@@ -137,7 +151,7 @@ impl InvoiceBuilder {
         )
         .as_str();
 
-        source += format!(
+        *source += format!(
             "#align(left)[
             {} \\ {} \\ {} \\ SIRET: {}
         ]\n",
@@ -147,32 +161,71 @@ impl InvoiceBuilder {
             sanitize(&self.data.siret_number),
         )
         .as_str();
+    }
 
-        source += "#v(sep_par())\n";
+    fn generate_metadata(&self, source: &mut String, current_date: &DateTime<Utc>, rec_name: String, rec_addr: String) {
+        let current_date_fmt = self.lang.get_date_fmt(current_date);
+        let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
-        let current_date_fmt = format!("{} {} {}", current_date.day(), get_month_name(&current_date), current_date.year());
-
-        source += format!("#grid(
+        *source += format!("#grid(
             columns: (1fr, 1fr),
             column-gutter: 10%,
             align(left)[
-                #text(17pt)[*Facturé à*] \\
+                #text(17pt)[{}] \\
                 {} \\ {} \\
             ],
             align(right)[
-                Facture numéro \\#*{}* \\
-                Créée le *{}* \\
-                Date de la prestation: *{}*
+                {} \\#*{}* \\
+                {} *{}* \\
+                {}: *{}*
             ],
-        )", rec_name, rec_addr,
-            self.data.invoice_total_count,
-            current_date_fmt,
-            date_sell
+        )", self.lang.get_doctype_word("invoice", "recipient_intro"),
+            rec_name, rec_addr,
+            self.lang.get_doctype_word("invoice", "invoice_nb"), self.data.invoice_total_count,
+            self.lang.get_doctype_word("invoice", "creation_date"), current_date_fmt,
+            self.lang.get_doctype_word("invoice", "sell_date"), date_sell
         ).as_str();
+    }
 
-        source += "#v(sep_par())\n";
+    fn generate_transaction_table(&self, source: &mut String) {
+        let word_desc = self.lang.get_doctype_word("invoice", "tx_item_description");
+        let word_units = self.lang.get_doctype_word("invoice", "tx_units");
+        let word_ppu = self.lang.get_doctype_word("invoice", "tx_price_per_unit");
+        let word_total = self.lang.get_doctype_word("invoice", "total_price");
+        let curr_sym = self.lang.get_doctype_word("general", "currency_symbol");
+        *source += format!("#table(
+            stroke: table_color(),
+            columns: (tx_descr_width(), 1fr, 1fr, 1fr),
+            [*{word_desc}*], [*{word_units}*], [*{word_ppu}*], [*{word_total}*],
+        ").as_str();
 
-        source += "\n";
-        Ok((fname, source))
+        let mut nb_tx = 1;
+        loop {
+            println!("\nEnter data about transaction {nb_tx}: ");
+            let descr = ask_user(format!("{word_desc}: "));
+            if descr.is_empty() {
+                break;
+            }
+
+            let units : Option<f64> = ask_user_parse(format!("{word_units}: "));
+            if units.is_none() {
+                break;
+            }
+            let units = units.unwrap();
+
+            let ppu: Option<f64> = ask_user_parse(format!("{word_ppu}: "));
+            if ppu.is_none() {
+                break;
+            }
+            let ppu = ppu.unwrap();
+
+            let total = units * ppu;
+            *source += format!("
+                \"{descr}\", \"{units}\", \"{ppu:.2} {curr_sym}\", \"{total:.2} {curr_sym}\",
+            ").as_str();
+            nb_tx += 1;
+        }
+
+        *source += ")\n";
     }
 }

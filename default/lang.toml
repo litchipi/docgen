@@ -1,0 +1,27 @@
+months = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre"
+]
+
+[general]
+currency_symbol = "€"
+
+[invoice]
+recipient_intro = "Facturé à"
+invoice_nb = "Facture numéro"
+creation_date = "Créée le"
+sell_date = "Date de la vente"
+tx_item_description = "Description"
+tx_units = "Unités"
+tx_price_per_unit = "Prix unitaire"
+total_price = "Total HT"

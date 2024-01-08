@@ -14,6 +14,8 @@ use doctype::DocumentType;
 use errors::Errcode;
 use world::TypstWorld;
 
+use crate::utils::import_lang_profile;
+
 #[derive(Parser, Debug)]
 struct Args {
     #[arg()]
@@ -54,10 +56,11 @@ fn main() {
         std::fs::create_dir_all(&root).expect("Unable to create root directory");
     }
     let doctype: DocumentType = (&args.doctype).try_into().unwrap();
+    let lang = import_lang_profile(&root.join("lang.toml")).expect("Unable to load lang file");
 
     println!("[*] Generating the source code");
     let source = doctype
-        .generate_typst(&root.join("data"))
+        .generate_typst(lang.clone(), &root.join("data"))
         .expect("Unable to generate typst code");
     if !args.outdir.exists() {
         std::fs::create_dir_all(&args.outdir).expect("Unable to create output directory");
