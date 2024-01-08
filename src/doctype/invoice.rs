@@ -2,12 +2,15 @@ use std::{path::PathBuf, collections::HashMap};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use chrono::{Utc, Datelike};
 
 use crate::{
     codegen::{sanitize, write_page_settings},
     errors::Errcode,
-    utils::{ask_user, ask_user_nonempty, map_get_str_or_ask},
+    utils::{ask_user, ask_user_nonempty, map_get_str_or_ask, get_month_name},
 };
+
+use super::TypstData;
 
 #[derive(Serialize, Deserialize)]
 struct InvoiceSavedData {
@@ -68,15 +71,15 @@ impl InvoiceSavedData {
         }
     }
 
-    pub fn get_recipient_data(&mut self) -> (String, String) {
-        let recipient_slug = ask_user_nonempty("Enter the slug for the recipient: ");
-        if let Some((name, addr, _)) = self.recipients_known.get(&recipient_slug) {
-            (name.clone(), addr.clone())
+    pub fn get_recipient_data(&mut self) -> (String, String, String) {
+        let slug = ask_user_nonempty("Enter the slug for the recipient: ").to_ascii_lowercase().replace(" ", "_");
+        if let Some((name, addr, _)) = self.recipients_known.get(&slug) {
+            (slug, name.clone(), addr.clone())
         } else {
-            let name = ask_user_nonempty(format!("Enter the name of the recipient {recipient_slug}: "));
-            let addr = ask_user_nonempty(format!("Enter the address of the recipient {recipient_slug}: "));
-            self.recipients_known.insert(recipient_slug, (name.clone(), addr.clone(), vec![]));
-            (name, addr)
+            let name = ask_user_nonempty(format!("Enter the name of the recipient {slug}: "));
+            let addr = ask_user_nonempty(format!("Enter the address of the recipient {slug}: "));
+            self.recipients_known.insert(slug.clone(), (name.clone(), addr.clone(), vec![]));
+            (slug, name, addr)
         }
     }
 }
@@ -86,7 +89,7 @@ pub struct InvoiceBuilder {
 }
 
 impl InvoiceBuilder {
-    pub fn generate(datafile: PathBuf) -> Result<String, Errcode> {
+    pub fn generate(datafile: PathBuf) -> Result<TypstData, Errcode> {
         let history = if !datafile.is_file() {
             InvoiceSavedData::init()
         } else {
@@ -103,16 +106,22 @@ impl InvoiceBuilder {
             }
         };
         let mut builder = InvoiceBuilder { data: history };
-        let result = builder.generate_invoice()?;
+        let (fname, result) = builder.generate_invoice()?;
         std::fs::write(datafile, serde_json::to_string_pretty(&builder.data)?)?;
-        Ok(result)
+        Ok(TypstData::new(fname, result))
     }
 
     // TODO    Generate an invoice
-    pub fn generate_invoice(&mut self) -> Result<String, Errcode> {
-        let (rec_name, rec_addr) = self.data.get_recipient_data();
+    pub fn generate_invoice(&mut self) -> Result<(String, String), Errcode> {
+        let (rec_slug, rec_name, rec_addr) = self.data.get_recipient_data();
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
         self.data.invoice_total_count += 1;
+        let current_date = Utc::now();
+
+        let fname = format!("invoice_{rec_slug}_{}_{}.pdf",
+            current_date.format("%d%m%y"),
+            self.data.invoice_total_count
+        );
 
         let mut source = "".to_string();
         write_page_settings(&mut source);
@@ -141,7 +150,7 @@ impl InvoiceBuilder {
 
         source += "#v(sep_par())\n";
 
-        let current_date = "5 Janvier 2024"; // TODO Auto-generate
+        let current_date_fmt = format!("{} {} {}", current_date.day(), get_month_name(&current_date), current_date.year());
 
         source += format!("#grid(
             columns: (1fr, 1fr),
@@ -155,11 +164,15 @@ impl InvoiceBuilder {
                 Créée le *{}* \\
                 Date de la prestation: *{}*
             ],
-        )", rec_name, rec_addr, self.data.invoice_total_count, current_date, date_sell).as_str();
+        )", rec_name, rec_addr,
+            self.data.invoice_total_count,
+            current_date_fmt,
+            date_sell
+        ).as_str();
 
         source += "#v(sep_par())\n";
 
         source += "\n";
-        Ok(source)
+        Ok((fname, source))
     }
 }

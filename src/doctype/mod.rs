@@ -4,6 +4,17 @@ use crate::errors::Errcode;
 
 pub mod invoice;
 
+pub struct TypstData {
+    pub fname: String,
+    pub code: String,
+}
+
+impl TypstData {
+    pub fn new(fname: String, code: String) -> TypstData {
+        TypstData { fname, code }
+    }
+}
+
 #[derive(Hash, Debug, Clone, Eq, PartialEq, Copy)]
 pub enum DocumentType {
     Invoice,
@@ -14,7 +25,7 @@ pub enum DocumentType {
 }
 
 impl DocumentType {
-    pub fn generate_typst(&self, datadir: &PathBuf) -> Result<String, Errcode> {
+    pub fn generate_typst(&self, datadir: &PathBuf) -> Result<TypstData, Errcode> {
         if !datadir.exists() {
             std::fs::create_dir(datadir)?;
         }

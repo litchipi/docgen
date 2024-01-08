@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use chrono::{Utc, Datelike};
 use comemo::Prehashed;
 use toml::map::Map;
 use typst::diag::{FileError, FileResult};
@@ -11,7 +12,7 @@ use typst::syntax::{FileId, Source, VirtualPath};
 use typst::text::{Font, FontBook};
 use typst::{Library, World};
 
-use crate::doctype::DocumentType;
+use crate::doctype::{DocumentType, TypstData};
 use crate::errors::Errcode;
 use crate::style::generate_style_variables;
 
@@ -29,7 +30,7 @@ impl TypstWorld {
     pub fn new(
         root: &PathBuf,
         doctype: DocumentType,
-        source: String,
+        source: TypstData,
     ) -> Result<TypstWorld, Errcode> {
         let fonts = import_fonts(&root.join("fonts"))?;
         let font_book = FontBook::from_fonts(&fonts);
@@ -39,7 +40,7 @@ impl TypstWorld {
         let source_id = FileId::new(None, VirtualPath::new("/source"));
         let style_vars =
             generate_style_variables(&config, &root.join("style.toml"), doctype.to_string())?;
-        let source = Source::new(source_id, format!("{style_vars}\n{source}\n"));
+        let source = Source::new(source_id, format!("{style_vars}\n{}\n", source.code));
 
         Ok(TypstWorld {
             source,
@@ -89,9 +90,13 @@ impl World for TypstWorld {
         self.fonts.1.get(index).cloned()
     }
 
-    // TODO    Get datetime from offset
     fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        Some(Datetime::from_ymd(1970, 1, 1).unwrap())
+        if offset.is_some() {
+            // TODO    If ever get this printed, take care of offset
+            println!("CALLED TODAY WITH OFFSET {offset:?}");
+        }
+        let cdate = Utc::now();
+        Some(Datetime::from_ymd(cdate.year(), cdate.month().try_into().unwrap(), cdate.day().try_into().unwrap()).unwrap())
     }
 }
 

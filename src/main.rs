@@ -19,8 +19,8 @@ struct Args {
     #[arg()]
     doctype: String,
 
-    #[arg(short, long, default_value = "./out.pdf")]
-    outfile: PathBuf,
+    #[arg(short, long)]
+    outdir: PathBuf,
 
     #[arg(short, long)]
     root_dir: Option<PathBuf>,
@@ -40,9 +40,9 @@ impl Args {
     }
 }
 
-fn export(outfile: &PathBuf, document: &Document) -> Result<(), Errcode> {
-    let res = typst_pdf::pdf(document, None, None);
-    std::fs::write(&outfile, res)?;
+fn export(outf: &PathBuf, doc: &Document) -> Result<(), Errcode> {
+    let res = typst_pdf::pdf(doc, None, None);
+    std::fs::write(outf, res)?;
     Ok(())
 }
 
@@ -51,7 +51,7 @@ fn main() {
     let args = Args::parse();
     let root = args.get_root();
     if !root.exists() {
-        std::fs::create_dir(&root).expect("Unable to create root directory");
+        std::fs::create_dir_all(&root).expect("Unable to create root directory");
     }
     let doctype: DocumentType = (&args.doctype).try_into().unwrap();
 
@@ -59,6 +59,10 @@ fn main() {
     let source = doctype
         .generate_typst(&root.join("data"))
         .expect("Unable to generate typst code");
+    if !args.outdir.exists() {
+        std::fs::create_dir_all(&args.outdir).expect("Unable to create output directory");
+    }
+    let outfile = args.outdir.join(&source.fname);
 
     println!("[*] Initializing Typst compilation context");
     let world = TypstWorld::new(&root, doctype, source).expect("Unable to create Typst context");
@@ -69,5 +73,5 @@ fn main() {
         .expect("Unable to compile generated typst code");
 
     println!("[*] Rendering the PDF file");
-    export(&args.outfile, &doc).expect("Unable to export to file");
+    export(&outfile, &doc).expect("Unable to export to file");
 }
