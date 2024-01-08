@@ -1,5 +1,5 @@
 pub fn sanitize(data: &String) -> String {
-    data.replace("@", "\\@").replace("#", "\\#")
+    data.replace('@', "\\@").replace('#', "\\#")
 }
 
 pub fn write_page_settings(buffer: &mut String) {

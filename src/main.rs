@@ -32,12 +32,10 @@ impl Args {
     fn get_root(&self) -> PathBuf {
         if let Some(ref root) = self.root_dir {
             root.clone()
+        } else if let Ok(root) = std::env::var("DOCGEN_ROOT") {
+            root.into()
         } else {
-            if let Ok(root) = std::env::var("DOCGEN_ROOT") {
-                root.into()
-            } else {
-                panic!("Root directory must be set using --root-dir or the DOCGEN_ROOT env var");
-            }
+            panic!("Root directory must be set using --root-dir or the DOCGEN_ROOT env var");
         }
     }
 }

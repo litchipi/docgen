@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use chrono::{Utc, Datelike};
+use chrono::{Datelike, Utc};
 use comemo::Prehashed;
 use toml::map::Map;
 use typst::diag::{FileError, FileResult};
@@ -58,7 +58,7 @@ impl TypstWorld {
                     println!("WARN {:?}", warn);
                 }
                 Ok(document)
-            },
+            }
             Err(e) => {
                 println!("Source code:\n{}", self.main().text());
                 panic!("Typst compilation error: {e:?}");
@@ -103,7 +103,14 @@ impl World for TypstWorld {
             println!("CALLED TODAY WITH OFFSET {offset:?}");
         }
         let cdate = Utc::now();
-        Some(Datetime::from_ymd(cdate.year(), cdate.month().try_into().unwrap(), cdate.day().try_into().unwrap()).unwrap())
+        Some(
+            Datetime::from_ymd(
+                cdate.year(),
+                cdate.month().try_into().unwrap(),
+                cdate.day().try_into().unwrap(),
+            )
+            .unwrap(),
+        )
     }
 }
 

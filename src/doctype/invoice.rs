@@ -1,13 +1,13 @@
-use std::{path::PathBuf, collections::HashMap};
+use std::{collections::HashMap, path::PathBuf};
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use chrono::{Utc, DateTime};
 
 use crate::{
     codegen::{sanitize, write_page_settings},
     errors::Errcode,
-    utils::{ask_user, ask_user_nonempty, map_get_str_or_ask, LangDict, ask_user_parse},
+    utils::{ask_user, ask_user_nonempty, ask_user_parse, map_get_str_or_ask, LangDict},
 };
 
 use super::TypstData;
@@ -30,7 +30,7 @@ impl InvoiceSavedData {
         let email = ask_user("Enter the email of your company: ");
         let legal_status = ask_user_nonempty("Enter the legal status of your company: ");
         let siret_number = ask_user_nonempty("Enter the SIRET number of your company: ");
-        println!("");
+        println!();
         InvoiceSavedData {
             company_name,
             address,
@@ -43,21 +43,43 @@ impl InvoiceSavedData {
     }
 
     pub fn partial_import(map: &Map<String, Value>) -> InvoiceSavedData {
-        let company_name = map_get_str_or_ask(map, "company_name", "Enter the name of your company: ", true);
-        let address = map_get_str_or_ask(map, "address", "Enter the address of your company: ", true);
+        let company_name = map_get_str_or_ask(
+            map,
+            "company_name",
+            "Enter the name of your company: ",
+            true,
+        );
+        let address =
+            map_get_str_or_ask(map, "address", "Enter the address of your company: ", true);
         let email = map_get_str_or_ask(map, "email", "Enter the email of your company: ", true);
-        let legal_status = map_get_str_or_ask(map, "legal_status", "Enter the legal status of your company: ", true);
-        let siret_number = map_get_str_or_ask(map, "siret", "Enter the siret of your company: ", true);
+        let legal_status = map_get_str_or_ask(
+            map,
+            "legal_status",
+            "Enter the legal status of your company: ",
+            true,
+        );
+        let siret_number =
+            map_get_str_or_ask(map, "siret", "Enter the siret of your company: ", true);
         let mut recipients_known = HashMap::new();
-        if let Some(data) = map.get("recipients_known").map(|n| n.as_object()).flatten() {
+        if let Some(data) = map.get("recipients_known").and_then(|n| n.as_object()) {
             for (key, val) in data.iter() {
                 let Some(val) = val.as_object() else {
                     println!("WARN Unable to import data for recipient {key}");
                     continue;
                 };
 
-                let name = map_get_str_or_ask(val, "name", format!("Enter the name of the recipient {key}: "), true);
-                let addr = map_get_str_or_ask(val, "address", format!("Enter the address of the recipient {key}: "), true);
+                let name = map_get_str_or_ask(
+                    val,
+                    "name",
+                    format!("Enter the name of the recipient {key}: "),
+                    true,
+                );
+                let addr = map_get_str_or_ask(
+                    val,
+                    "address",
+                    format!("Enter the address of the recipient {key}: "),
+                    true,
+                );
                 recipients_known.insert(key.clone(), (name, addr, vec![]));
             }
         }
@@ -73,13 +95,16 @@ impl InvoiceSavedData {
     }
 
     pub fn get_recipient_data(&mut self) -> (String, String, String) {
-        let slug = ask_user_nonempty("Enter the slug for the recipient: ").to_ascii_lowercase().replace(" ", "_");
+        let slug = ask_user_nonempty("Enter the slug for the recipient: ")
+            .to_ascii_lowercase()
+            .replace(' ', "_");
         if let Some((name, addr, _)) = self.recipients_known.get(&slug) {
             (slug, name.clone(), addr.clone())
         } else {
             let name = ask_user_nonempty(format!("Enter the name of the recipient {slug}: "));
             let addr = ask_user_nonempty(format!("Enter the address of the recipient {slug}: "));
-            self.recipients_known.insert(slug.clone(), (name.clone(), addr.clone(), vec![]));
+            self.recipients_known
+                .insert(slug.clone(), (name.clone(), addr.clone(), vec![]));
             (slug, name, addr)
         }
     }
@@ -107,7 +132,10 @@ impl InvoiceBuilder {
                 }
             }
         };
-        let mut builder = InvoiceBuilder { lang, data: history };
+        let mut builder = InvoiceBuilder {
+            lang,
+            data: history,
+        };
         let (fname, result) = builder.generate_invoice()?;
         std::fs::write(datafile, serde_json::to_string_pretty(&builder.data)?)?;
         Ok(TypstData::new(fname, result))
@@ -120,7 +148,8 @@ impl InvoiceBuilder {
         self.data.invoice_total_count += 1;
         let current_date = Utc::now();
 
-        let fname = format!("invoice_{rec_slug}_{}_{}.pdf",
+        let fname = format!(
+            "invoice_{rec_slug}_{}_{}.pdf",
             current_date.format("%d%m%y"),
             self.data.invoice_total_count
         );
@@ -163,11 +192,18 @@ impl InvoiceBuilder {
         .as_str();
     }
 
-    fn generate_metadata(&self, source: &mut String, current_date: &DateTime<Utc>, rec_name: String, rec_addr: String) {
+    fn generate_metadata(
+        &self,
+        source: &mut String,
+        current_date: &DateTime<Utc>,
+        rec_name: String,
+        rec_addr: String,
+    ) {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
-        *source += format!("#grid(
+        *source += format!(
+            "#grid(
             columns: (1fr, 1fr),
             column-gutter: 10%,
             align(left)[
@@ -179,12 +215,18 @@ impl InvoiceBuilder {
                 {} *{}* \\
                 {}: *{}*
             ],
-        )", self.lang.get_doctype_word("invoice", "recipient_intro"),
-            rec_name, rec_addr,
-            self.lang.get_doctype_word("invoice", "invoice_nb"), self.data.invoice_total_count,
-            self.lang.get_doctype_word("invoice", "creation_date"), current_date_fmt,
-            self.lang.get_doctype_word("invoice", "sell_date"), date_sell
-        ).as_str();
+        )",
+            self.lang.get_doctype_word("invoice", "recipient_intro"),
+            rec_name,
+            rec_addr,
+            self.lang.get_doctype_word("invoice", "invoice_nb"),
+            self.data.invoice_total_count,
+            self.lang.get_doctype_word("invoice", "creation_date"),
+            current_date_fmt,
+            self.lang.get_doctype_word("invoice", "sell_date"),
+            date_sell
+        )
+        .as_str();
     }
 
     fn generate_transaction_table(&self, source: &mut String) {
@@ -193,11 +235,14 @@ impl InvoiceBuilder {
         let word_ppu = self.lang.get_doctype_word("invoice", "tx_price_per_unit");
         let word_total = self.lang.get_doctype_word("invoice", "total_price");
         let curr_sym = self.lang.get_doctype_word("general", "currency_symbol");
-        *source += format!("#table(
+        *source += format!(
+            "#table(
             stroke: table_color(),
             columns: (tx_descr_width(), 1fr, 1fr, 1fr),
             [*{word_desc}*], [*{word_units}*], [*{word_ppu}*], [*{word_total}*],
-        ").as_str();
+        "
+        )
+        .as_str();
 
         let mut nb_tx = 1;
         loop {
@@ -207,7 +252,7 @@ impl InvoiceBuilder {
                 break;
             }
 
-            let units : Option<f64> = ask_user_parse(format!("{word_units}: "));
+            let units: Option<f64> = ask_user_parse(format!("{word_units}: "));
             if units.is_none() {
                 break;
             }
@@ -220,9 +265,12 @@ impl InvoiceBuilder {
             let ppu = ppu.unwrap();
 
             let total = units * ppu;
-            *source += format!("
+            *source += format!(
+                "
                 \"{descr}\", \"{units}\", \"{ppu:.2} {curr_sym}\", \"{total:.2} {curr_sym}\",
-            ").as_str();
+            "
+            )
+            .as_str();
             nb_tx += 1;
         }
 

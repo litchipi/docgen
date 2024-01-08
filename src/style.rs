@@ -60,7 +60,7 @@ where
 }
 
 pub fn generate_style_variables(
-    config: &ConfigStore,
+    _config: &ConfigStore,
     stylefile: &PathBuf,
     doctype: String,
 ) -> Result<String, Errcode> {

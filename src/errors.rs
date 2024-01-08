@@ -20,7 +20,7 @@ impl std::fmt::Display for Errcode {
                 if let Some(code) = e.raw_os_error() {
                     writeln!(f, "Code: {code}")?;
                 }
-                writeln!(f, "Message: {}", e.to_string())?;
+                writeln!(f, "Message: {}", e)?;
             }
             e => write!(f, "{e:?}")?,
         }
