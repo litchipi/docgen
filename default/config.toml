@@ -1,4 +1,5 @@
 [company]
+logo_path = "logo.png"
 name = "Company name"
 address = "1 rue des Champs Elysées, 75000 Paris"
 email = "someaddress@gmail.com"

@@ -141,7 +141,7 @@ impl InvoiceBuilder {
 
     fn generate_header(&self, source: &mut String) {
         *source += "#let sep_par() = 28pt\n";
-        let logo_path = self.lang.get_doctype_word("invoice", "logo_path");
+        let logo_path = self.cfg.get_company("logo_path");
         let logo = format!("#image(\"{logo_path}\", width: logo_width())");
         *source += format!(
             "#grid(
