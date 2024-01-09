@@ -58,6 +58,10 @@ fn main() {
     let lang = import_lang_profile(&root.join("lang.toml")).expect("Unable to load lang file");
     let config = import_config(&root.join("config.toml")).expect("Unable to load config");
 
+    println!("[*] Initializing Typst compilation context");
+    let mut world =
+        TypstWorld::new(&root, doctype).expect("Unable to create Typst context");
+
     println!("[*] Generating the source code");
     let source = doctype
         .generate_typst(config.clone(), lang.clone(), &root.join("data"))
@@ -67,13 +71,9 @@ fn main() {
     }
     let outfile = args.outdir.join(&source.fname);
 
-    println!("[*] Initializing Typst compilation context");
-    let world =
-        TypstWorld::new(config, &root, doctype, source).expect("Unable to create Typst context");
-
     println!("[*] Compiling the source code");
     let doc = world
-        .compile()
+        .compile(source)
         .expect("Unable to compile generated typst code");
 
     println!("[*] Rendering the PDF file");

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::{Datelike, Utc};
 use comemo::Prehashed;
+use toml::map::Map;
 use typst::diag::{FileError, FileResult};
 use typst::eval::Tracer;
 use typst::foundations::{Bytes, Datetime};
@@ -11,45 +12,48 @@ use typst::syntax::{FileId, Source, VirtualPath};
 use typst::text::{Font, FontBook};
 use typst::{Library, World};
 
-use crate::config::ConfigStore;
 use crate::doctype::{DocumentType, TypstData};
 use crate::errors::Errcode;
-use crate::style::generate_style_variables;
+use crate::style::{generate_style_variables, import_style, import_fonts};
 
 type AssetStore = HashMap<PathBuf, Bytes>;
 
 pub struct TypstWorld {
-    source: Source,
     assets: AssetStore,
     fonts: (Prehashed<FontBook>, Vec<Font>),
     library: Prehashed<Library>,
+    style: Map<String, toml::Value>,
+    doctype: DocumentType,
+    source: Option<Source>,
 }
 
 impl TypstWorld {
     pub fn new(
-        config: ConfigStore,
         root: &Path,
         doctype: DocumentType,
-        source: TypstData,
     ) -> Result<TypstWorld, Errcode> {
-        let fonts = import_fonts(&root.join("fonts"))?;
+        let style = import_style(&root.join("style.toml"))?;
+        let fonts = import_fonts(&style, &root.join("fonts"))?;
         let font_book = FontBook::from_fonts(&fonts);
         let assets_dir = root.join("assets");
         let assets = import_assets(&assets_dir, &assets_dir)?;
-        let source_id = FileId::new(None, VirtualPath::new("/source"));
-        let style_vars =
-            generate_style_variables(&config, &root.join("style.toml"), doctype.to_string())?;
-        let source = Source::new(source_id, format!("{style_vars}\n{}\n", source.code));
 
         Ok(TypstWorld {
-            source,
             fonts: (Prehashed::new(font_book), fonts),
             assets,
+            style,
+            doctype,
             library: Prehashed::new(Library::default()),
+            source: None,
         })
     }
 
-    pub fn compile(&self) -> Result<Document, Errcode> {
+    pub fn compile(&mut self, source: TypstData) -> Result<Document, Errcode> {
+        let source_id = FileId::new(None, VirtualPath::new("/source"));
+        let style_vars = generate_style_variables(&self.style, self.doctype.to_string());
+        println!("{style_vars}\n{}", source.code);
+        let source = Source::new(source_id, format!("{style_vars}\n{}\n", source.code));
+        self.source = Some(source);
         let mut tracer = Tracer::new();
         match typst::compile(self, &mut tracer) {
             Ok(document) => {
@@ -76,7 +80,7 @@ impl World for TypstWorld {
     }
 
     fn main(&self) -> Source {
-        self.source.clone()
+        self.source.clone().unwrap()
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {
@@ -112,30 +116,6 @@ impl World for TypstWorld {
             .unwrap(),
         )
     }
-}
-
-fn import_fonts(fonts_dir: &PathBuf) -> Result<Vec<Font>, Errcode> {
-    if !fonts_dir.exists() {
-        std::fs::create_dir(fonts_dir)?;
-        std::fs::write(
-            fonts_dir.join("default.ttf"),
-            include_bytes!("../default/font.ttf"),
-        )?;
-    }
-    assert!(fonts_dir.is_dir());
-    let mut all_fonts = vec![];
-    for font_file in std::fs::read_dir(fonts_dir)? {
-        let font_file = font_file?;
-        let ftype = font_file.file_type()?;
-        if ftype.is_dir() {
-            all_fonts.extend(import_fonts(&font_file.path())?);
-        } else {
-            // File or symlink
-            let data = std::fs::read(font_file.path())?;
-            all_fonts.extend(Font::iter(Bytes::from(data)));
-        }
-    }
-    Ok(all_fonts)
 }
 
 fn import_assets(root: &PathBuf, assets_dir: &PathBuf) -> Result<AssetStore, Errcode> {

@@ -20,6 +20,18 @@ impl ConfigDataStore {
             .unwrap()
             .to_string()
     }
+
+    fn get<'a>(&'a self, key: &str, data: &str) -> &'a toml::Value {
+        self.data.get(key).unwrap().get(data).unwrap()
+    }
+
+    pub fn get_bool(&self, key: &str, data: &str) -> bool {
+        self.get(key, data).as_bool().expect("Unable to convert {key}:{data} to boolean")
+    }
+
+    pub fn get_float(&self, key: &str, data: &str) -> f64 {
+        self.get(key, data).as_float().expect("Unable to convert {key}:{data} to float")
+    }
 }
 
 pub fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {

@@ -10,6 +10,8 @@ pub enum Errcode {
     TomlEncode(#[from] toml::ser::Error),
     PathPrefixStrip(#[from] std::path::StripPrefixError),
     JsonDecode(#[from] serde_json::Error),
+    ReqwestError(#[from] reqwest::Error),
+    ZipArchive(#[from] zip::result::ZipError),
 }
 
 impl std::fmt::Display for Errcode {

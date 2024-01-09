@@ -85,7 +85,7 @@ impl InvoiceBuilder {
         lang: LangDict,
         datafile: PathBuf,
     ) -> Result<TypstData, Errcode> {
-        let history = if !datafile.is_file() {
+        let invdata = if !datafile.is_file() {
             InvoiceSavedData::init()
         } else {
             let json_str = std::fs::read_to_string(&datafile)?;
@@ -103,9 +103,10 @@ impl InvoiceBuilder {
         let mut builder = InvoiceBuilder {
             cfg,
             lang,
-            data: history,
+            data: invdata,
         };
         let (fname, result) = builder.generate_invoice()?;
+        std::fs::write("/tmp/.typst_result.typ", &result)?;
         std::fs::write(datafile, serde_json::to_string_pretty(&builder.data)?)?;
         Ok(TypstData::new(fname, result))
     }
@@ -123,17 +124,16 @@ impl InvoiceBuilder {
             self.data.invoice_total_count
         );
 
+        let footer = self.lang.get_doctype_word("invoice", "footer");
         let mut source = "".to_string();
-        write_page_settings(&mut source);
+        write_page_settings(&mut source, footer);
         self.generate_header(&mut source);
         source += "#v(sep_par())\n";
         self.generate_metadata(&mut source, &current_date, rec_name, rec_addr);
         source += "#v(sep_par())\n";
-        self.generate_transaction_table(&mut source);
+        let total_price = self.generate_transaction_table(&mut source);
         source += "#v(sep_par())\n";
-
-        // TODO    Generate total price summary
-        // TODO    Generate footer legal notes
+        self.generate_summary_table(&mut source, total_price);
 
         source += "\n";
         Ok((fname, source))
@@ -155,8 +155,9 @@ impl InvoiceBuilder {
 
         *source += format!(
             "#align(left)[
-            {} \\ {} \\ {} \\ SIRET: {}
+            {} \\ {} \\ {} \\ {} \\ SIRET: {}
         ]\n",
+            sanitize(&self.cfg.get_company("person_name")),
             sanitize(&self.cfg.get_company("address")),
             sanitize(&self.cfg.get_company("email")),
             sanitize(&self.cfg.get_company("legal_status")),
@@ -202,7 +203,7 @@ impl InvoiceBuilder {
         .as_str();
     }
 
-    fn generate_transaction_table(&self, source: &mut String) {
+    fn generate_transaction_table(&self, source: &mut String) -> f64 {
         let word_desc = self.lang.get_doctype_word("invoice", "tx_item_description");
         let word_units = self.lang.get_doctype_word("invoice", "tx_units");
         let word_ppu = self.lang.get_doctype_word("invoice", "tx_price_per_unit");
@@ -218,6 +219,7 @@ impl InvoiceBuilder {
         .as_str();
 
         let mut nb_tx = 1;
+        let mut total_price = 0.0;
         loop {
             println!("\nEnter data about transaction {nb_tx}: ");
             let descr = ask_user(format!("{word_desc}: "));
@@ -245,8 +247,37 @@ impl InvoiceBuilder {
             )
             .as_str();
             nb_tx += 1;
+            total_price += total;
         }
 
         *source += ")\n";
+        total_price
+    }
+
+    fn generate_summary_table(&self, source: &mut String, total_price: f64) {
+        let curr_sym = self.lang.get_doctype_word("general", "currency_symbol");
+        let (tax_fmt, tax_amnt) = if self.cfg.get_bool("company", "tax_applicable") {
+            let tax_rate: f64 = self.cfg.get_float("company", "tax_rate");
+            let amnt = total_price * tax_rate;
+            (format!("[*{} {:.2}%*], [{} {curr_sym}]",
+                self.lang.get_doctype_word("invoice", "tax_name"),
+                tax_rate * 100.0,
+                amnt,
+            ), amnt)
+        } else {
+            (format!("[*{}*], []", self.lang.get_doctype_word("invoice", "tax_not_applicable")), 0.0)
+        };
+
+        *source += format!("#table(
+            stroke: table_color(),
+            columns: (auto, auto),
+            [*{}*], [{total_price:.2} {curr_sym}],
+            {tax_fmt},
+            [*{}*], [{:.2} {curr_sym}],
+        )",
+            self.lang.get_doctype_word("invoice", "total_price_no_tax"),
+            self.lang.get_doctype_word("invoice", "total_price_with_tax"),
+            total_price + tax_amnt
+        ).as_str();
     }
 }
