@@ -1,4 +1,4 @@
-pub fn sanitize(data: &String) -> String {
+pub fn sanitize(data: &str) -> String {
     data.replace('@', "\\@").replace('#', "\\#")
 }
 

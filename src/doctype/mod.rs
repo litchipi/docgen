@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{errors::Errcode, utils::LangDict, config::ConfigStore};
+use crate::{config::ConfigStore, errors::Errcode, utils::LangDict};
 
 pub mod invoice;
 
@@ -25,7 +25,12 @@ pub enum DocumentType {
 }
 
 impl DocumentType {
-    pub fn generate_typst(&self, cfg: ConfigStore, lang: LangDict, datadir: &PathBuf) -> Result<TypstData, Errcode> {
+    pub fn generate_typst(
+        &self,
+        cfg: ConfigStore,
+        lang: LangDict,
+        datadir: &PathBuf,
+    ) -> Result<TypstData, Errcode> {
         if !datadir.exists() {
             std::fs::create_dir(datadir)?;
         }

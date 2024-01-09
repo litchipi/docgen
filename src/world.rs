@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::{Datelike, Utc};
 use comemo::Prehashed;
@@ -28,7 +28,7 @@ pub struct TypstWorld {
 impl TypstWorld {
     pub fn new(
         config: ConfigStore,
-        root: &PathBuf,
+        root: &Path,
         doctype: DocumentType,
         source: TypstData,
     ) -> Result<TypstWorld, Errcode> {

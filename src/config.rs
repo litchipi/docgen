@@ -11,7 +11,14 @@ pub struct ConfigDataStore {
 
 impl ConfigDataStore {
     pub fn get_company(&self, data: &str) -> String {
-        self.data.get("company").unwrap().get(data).unwrap().as_str().unwrap().to_string()
+        self.data
+            .get("company")
+            .unwrap()
+            .get(data)
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string()
     }
 }
 
@@ -21,7 +28,9 @@ pub fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {
     let default_config = default_config.as_table().unwrap().to_owned();
     if !config_file.exists() {
         std::fs::write(config_file, default_config_str)?;
-        return Ok(Rc::new(ConfigDataStore { data: default_config }));
+        return Ok(Rc::new(ConfigDataStore {
+            data: default_config,
+        }));
     }
     assert!(config_file.is_file());
 

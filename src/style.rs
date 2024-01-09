@@ -2,17 +2,17 @@ use std::path::PathBuf;
 
 use toml::{map::Map, Value};
 
-use crate::errors::Errcode;
 use crate::config::ConfigStore;
+use crate::errors::Errcode;
 
 const NO_QUOTE_LIST: &[&str] = &["pt", "%", "fr"];
 const FCT_LIST: &[&str] = &["rgb"];
 
 fn to_typst(val: &Value) -> String {
     if let Value::String(s) = val {
-        if FCT_LIST.iter().any(|pref| s.starts_with(pref)) {
-            s.clone()
-        } else if NO_QUOTE_LIST.iter().any(|suff| s.ends_with(suff)) {
+        let is_fct = FCT_LIST.iter().any(|pref| s.starts_with(pref));
+        let is_metric = NO_QUOTE_LIST.iter().any(|suff| s.ends_with(suff));
+        if is_fct || is_metric {
             s.clone()
         } else {
             val.to_string()

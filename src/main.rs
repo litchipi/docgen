@@ -4,18 +4,18 @@ use clap::Parser;
 use typst::model::Document;
 
 mod codegen;
+mod config;
 mod doctype;
 mod errors;
 mod style;
 mod utils;
 mod world;
-mod config;
 
 use doctype::DocumentType;
 use errors::Errcode;
 use world::TypstWorld;
 
-use crate::{utils::import_lang_profile, config::import_config};
+use crate::{config::import_config, utils::import_lang_profile};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -68,7 +68,8 @@ fn main() {
     let outfile = args.outdir.join(&source.fname);
 
     println!("[*] Initializing Typst compilation context");
-    let world = TypstWorld::new(config, &root, doctype, source).expect("Unable to create Typst context");
+    let world =
+        TypstWorld::new(config, &root, doctype, source).expect("Unable to create Typst context");
 
     println!("[*] Compiling the source code");
     let doc = world

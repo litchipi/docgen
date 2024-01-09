@@ -6,8 +6,9 @@ use serde_json::{Map, Value};
 
 use crate::{
     codegen::{sanitize, write_page_settings},
+    config::ConfigStore,
     errors::Errcode,
-    utils::{ask_user, ask_user_nonempty, ask_user_parse, map_get_str_or_ask, LangDict}, config::ConfigStore,
+    utils::{ask_user, ask_user_nonempty, ask_user_parse, map_get_str_or_ask, LangDict},
 };
 
 use super::TypstData;
@@ -79,7 +80,11 @@ pub struct InvoiceBuilder {
 }
 
 impl InvoiceBuilder {
-    pub fn generate(cfg: ConfigStore, lang: LangDict, datafile: PathBuf) -> Result<TypstData, Errcode> {
+    pub fn generate(
+        cfg: ConfigStore,
+        lang: LangDict,
+        datafile: PathBuf,
+    ) -> Result<TypstData, Errcode> {
         let history = if !datafile.is_file() {
             InvoiceSavedData::init()
         } else {
