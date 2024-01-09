@@ -7,59 +7,26 @@ use serde_json::{Map, Value};
 use crate::{
     codegen::{sanitize, write_page_settings},
     errors::Errcode,
-    utils::{ask_user, ask_user_nonempty, ask_user_parse, map_get_str_or_ask, LangDict},
+    utils::{ask_user, ask_user_nonempty, ask_user_parse, map_get_str_or_ask, LangDict}, config::ConfigStore,
 };
 
 use super::TypstData;
 
 #[derive(Serialize, Deserialize)]
 struct InvoiceSavedData {
-    company_name: String,
-    address: String,
-    email: String,
-    legal_status: String,
-    siret_number: String,
     invoice_total_count: usize,
     recipients_known: HashMap<String, (String, String, Vec<usize>)>,
 }
 
 impl InvoiceSavedData {
     pub fn init() -> InvoiceSavedData {
-        let company_name = ask_user_nonempty("Enter the name of your company: ");
-        let address = ask_user_nonempty("Enter the postal address of your company: ");
-        let email = ask_user("Enter the email of your company: ");
-        let legal_status = ask_user_nonempty("Enter the legal status of your company: ");
-        let siret_number = ask_user_nonempty("Enter the SIRET number of your company: ");
-        println!();
         InvoiceSavedData {
-            company_name,
-            address,
-            email,
-            legal_status,
-            siret_number,
             invoice_total_count: 0,
             recipients_known: HashMap::new(),
         }
     }
 
     pub fn partial_import(map: &Map<String, Value>) -> InvoiceSavedData {
-        let company_name = map_get_str_or_ask(
-            map,
-            "company_name",
-            "Enter the name of your company: ",
-            true,
-        );
-        let address =
-            map_get_str_or_ask(map, "address", "Enter the address of your company: ", true);
-        let email = map_get_str_or_ask(map, "email", "Enter the email of your company: ", true);
-        let legal_status = map_get_str_or_ask(
-            map,
-            "legal_status",
-            "Enter the legal status of your company: ",
-            true,
-        );
-        let siret_number =
-            map_get_str_or_ask(map, "siret", "Enter the siret of your company: ", true);
         let mut recipients_known = HashMap::new();
         if let Some(data) = map.get("recipients_known").and_then(|n| n.as_object()) {
             for (key, val) in data.iter() {
@@ -84,11 +51,6 @@ impl InvoiceSavedData {
             }
         }
         InvoiceSavedData {
-            company_name,
-            address,
-            email,
-            legal_status,
-            siret_number,
             invoice_total_count: 0,
             recipients_known,
         }
@@ -111,12 +73,13 @@ impl InvoiceSavedData {
 }
 
 pub struct InvoiceBuilder {
+    cfg: ConfigStore,
     data: InvoiceSavedData,
     lang: LangDict,
 }
 
 impl InvoiceBuilder {
-    pub fn generate(lang: LangDict, datafile: PathBuf) -> Result<TypstData, Errcode> {
+    pub fn generate(cfg: ConfigStore, lang: LangDict, datafile: PathBuf) -> Result<TypstData, Errcode> {
         let history = if !datafile.is_file() {
             InvoiceSavedData::init()
         } else {
@@ -133,6 +96,7 @@ impl InvoiceBuilder {
             }
         };
         let mut builder = InvoiceBuilder {
+            cfg,
             lang,
             data: history,
         };
@@ -168,15 +132,16 @@ impl InvoiceBuilder {
     }
 
     fn generate_header(&self, source: &mut String) {
-        // TODO    Add the logo
         *source += "#let sep_par() = 28pt\n";
+        let logo_path = self.lang.get_doctype_word("invoice", "logo_path");
+        let logo = format!("#image(\"{logo_path}\", width: logo_width())");
         *source += format!(
             "#grid(
             columns: (1fr, auto),
             align(left, text(company_name_font_size())[{}]),
-            align(right)[LOGO HERE]
+            align(right)[{logo}]
         )\n",
-            sanitize(&self.data.company_name)
+            sanitize(&self.cfg.get_company("name"))
         )
         .as_str();
 
@@ -184,10 +149,10 @@ impl InvoiceBuilder {
             "#align(left)[
             {} \\ {} \\ {} \\ SIRET: {}
         ]\n",
-            sanitize(&self.data.address),
-            sanitize(&self.data.email),
-            sanitize(&self.data.legal_status),
-            sanitize(&self.data.siret_number),
+            sanitize(&self.cfg.get_company("address")),
+            sanitize(&self.cfg.get_company("email")),
+            sanitize(&self.cfg.get_company("legal_status")),
+            sanitize(&self.cfg.get_company("siret_number")),
         )
         .as_str();
     }

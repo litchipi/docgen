@@ -1,2 +1,6 @@
-[default]
-test_key = "test_val"
+[company]
+name = "Company name"
+address = "1 rue des Champs Elysées, 75000 Paris"
+email = "someaddress@gmail.com"
+legal_status = "SARL"
+siret_number = "010203040506070809"

@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use toml::{map::Map, Value};
 
-use crate::{errors::Errcode, world::ConfigStore};
+use crate::errors::Errcode;
+use crate::config::ConfigStore;
 
 const NO_QUOTE_LIST: &[&str] = &["pt", "%", "fr"];
 const FCT_LIST: &[&str] = &["rgb"];
@@ -26,6 +27,7 @@ fn get_default_invoice_style() -> Map<String, Value> {
     style.insert("company_name_font_size".into(), "23pt".into());
     style.insert("table_color".into(), "rgb(110, 140, 180, 205)".into());
     style.insert("tx_descr_width".into(), "3fr".into());
+    style.insert("logo_width".into(), "150pt".into());
     style
 }
 

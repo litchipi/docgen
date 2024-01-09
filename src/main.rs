@@ -9,12 +9,13 @@ mod errors;
 mod style;
 mod utils;
 mod world;
+mod config;
 
 use doctype::DocumentType;
 use errors::Errcode;
 use world::TypstWorld;
 
-use crate::utils::import_lang_profile;
+use crate::{utils::import_lang_profile, config::import_config};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -55,10 +56,11 @@ fn main() {
     }
     let doctype: DocumentType = (&args.doctype).try_into().unwrap();
     let lang = import_lang_profile(&root.join("lang.toml")).expect("Unable to load lang file");
+    let config = import_config(&root.join("config.toml")).expect("Unable to load config");
 
     println!("[*] Generating the source code");
     let source = doctype
-        .generate_typst(lang.clone(), &root.join("data"))
+        .generate_typst(config.clone(), lang.clone(), &root.join("data"))
         .expect("Unable to generate typst code");
     if !args.outdir.exists() {
         std::fs::create_dir_all(&args.outdir).expect("Unable to create output directory");
@@ -66,7 +68,7 @@ fn main() {
     let outfile = args.outdir.join(&source.fname);
 
     println!("[*] Initializing Typst compilation context");
-    let world = TypstWorld::new(&root, doctype, source).expect("Unable to create Typst context");
+    let world = TypstWorld::new(config, &root, doctype, source).expect("Unable to create Typst context");
 
     println!("[*] Compiling the source code");
     let doc = world

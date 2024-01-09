@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use chrono::{Datelike, Utc};
 use comemo::Prehashed;
-use toml::map::Map;
 use typst::diag::{FileError, FileResult};
 use typst::eval::Tracer;
 use typst::foundations::{Bytes, Datetime};
@@ -12,12 +11,12 @@ use typst::syntax::{FileId, Source, VirtualPath};
 use typst::text::{Font, FontBook};
 use typst::{Library, World};
 
+use crate::config::ConfigStore;
 use crate::doctype::{DocumentType, TypstData};
 use crate::errors::Errcode;
 use crate::style::generate_style_variables;
 
 type AssetStore = HashMap<PathBuf, Bytes>;
-pub type ConfigStore = Map<String, toml::Value>;
 
 pub struct TypstWorld {
     source: Source,
@@ -28,6 +27,7 @@ pub struct TypstWorld {
 
 impl TypstWorld {
     pub fn new(
+        config: ConfigStore,
         root: &PathBuf,
         doctype: DocumentType,
         source: TypstData,
@@ -36,7 +36,6 @@ impl TypstWorld {
         let font_book = FontBook::from_fonts(&fonts);
         let assets_dir = root.join("assets");
         let assets = import_assets(&assets_dir, &assets_dir)?;
-        let config = import_config(&root.join("config.toml"))?;
         let source_id = FileId::new(None, VirtualPath::new("/source"));
         let style_vars =
             generate_style_variables(&config, &root.join("style.toml"), doctype.to_string())?;
@@ -86,6 +85,7 @@ impl World for TypstWorld {
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
+        println!("Getting asset {id:?}");
         let path = id.vpath().as_rootless_path();
         self.assets
             .get(path)
@@ -166,24 +166,4 @@ fn import_assets(root: &PathBuf, assets_dir: &PathBuf) -> Result<AssetStore, Err
         }
     }
     Ok(store)
-}
-
-fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {
-    let default_config_str = include_str!("../default/config.toml");
-    let default_config: toml::Value = toml::from_str(default_config_str)?;
-    let default_config = default_config.as_table().unwrap().to_owned();
-    if !config_file.exists() {
-        std::fs::write(config_file, default_config_str)?;
-        return Ok(default_config);
-    }
-    assert!(config_file.is_file());
-
-    let config: toml::Value = toml::from_str(std::fs::read_to_string(config_file)?.as_str())?;
-    let mut config = config.as_table().unwrap().to_owned();
-    for (key, val) in default_config.into_iter() {
-        if !config.contains_key(&key) {
-            config.insert(key, val);
-        }
-    }
-    Ok(config)
 }
