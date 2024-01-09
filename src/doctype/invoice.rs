@@ -132,6 +132,9 @@ impl InvoiceBuilder {
         self.generate_transaction_table(&mut source);
         source += "#v(sep_par())\n";
 
+        // TODO    Generate total price summary
+        // TODO    Generate footer legal notes
+
         source += "\n";
         Ok((fname, source))
     }
