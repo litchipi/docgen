@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -7,16 +7,85 @@ use serde_json::{Map, Value};
 use crate::{
     codegen::{sanitize, write_page_settings},
     config::ConfigStore,
+    contact::{Contact, ContactBook},
     errors::Errcode,
-    utils::{ask_user, ask_user_nonempty, ask_user_parse, map_get_str_or_ask, LangDict},
+    utils::{ask_user, ask_user_nonempty, ask_user_parse, LangDict},
 };
 
 use super::TypstData;
 
+pub struct InvoiceInput {
+    recipient: Rc<Contact>,
+    date_sell: String,
+    tx: Vec<(String, f64, f64)>,
+}
+
+impl InvoiceInput {
+    pub fn new(
+        rslug: String,
+        rname: String,
+        raddr: String,
+        date_sell: String,
+        tx: Vec<(String, f64, f64)>,
+    ) -> InvoiceInput {
+        InvoiceInput {
+            recipient: Rc::new(Contact::new(rslug, rname, raddr)),
+            date_sell,
+            tx,
+        }
+    }
+
+    pub fn ask(lang: LangDict, known: Option<&ContactBook>) -> InvoiceInput {
+        let slug = Contact::ask_slug();
+        let recipient = if let Some(contact) = known.map(|k| k.get(&slug)).flatten() {
+            (*contact).clone()
+        } else {
+            println!("Enter the informations related to the recipient");
+            Rc::new(Contact::ask(Some(slug)))
+        };
+
+        let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
+
+        let word_desc = lang.get_doctype_word("invoice", "tx_item_description");
+        let word_units = lang.get_doctype_word("invoice", "tx_units");
+        let word_ppu = lang.get_doctype_word("invoice", "tx_price_per_unit");
+
+        let mut tx = vec![];
+        loop {
+            println!("\nEnter data about transaction {}: ", tx.len() + 1);
+            let descr = ask_user(format!("{word_desc}: "));
+            if descr.is_empty() {
+                break;
+            }
+
+            let units: Option<f64> = ask_user_parse(format!("{word_units}: "));
+            if units.is_none() {
+                break;
+            }
+            let units = units.unwrap();
+
+            let ppu: Option<f64> = ask_user_parse(format!("{word_ppu}: "));
+            if ppu.is_none() {
+                break;
+            }
+            let ppu = ppu.unwrap();
+            tx.push((descr, units, ppu));
+        }
+        InvoiceInput {
+            recipient,
+            date_sell,
+            tx,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct InvoiceSavedData {
     invoice_total_count: usize,
-    recipients_known: HashMap<String, (String, String, Vec<usize>)>,
+
+    #[serde(serialize_with = "crate::utils::serialize_hashmap_rc")]
+    #[serde(deserialize_with = "crate::utils::deserialize_hashmap_rc")]
+    recipients_known: HashMap<String, Rc<Contact>>,
 }
 
 impl InvoiceSavedData {
@@ -36,39 +105,13 @@ impl InvoiceSavedData {
                     continue;
                 };
 
-                let name = map_get_str_or_ask(
-                    val,
-                    "name",
-                    format!("Enter the name of the recipient {key}: "),
-                    true,
-                );
-                let addr = map_get_str_or_ask(
-                    val,
-                    "address",
-                    format!("Enter the address of the recipient {key}: "),
-                    true,
-                );
-                recipients_known.insert(key.clone(), (name, addr, vec![]));
+                let contact = Contact::partial_import(key.clone(), val);
+                recipients_known.insert(key.clone(), Rc::new(contact));
             }
         }
         InvoiceSavedData {
             invoice_total_count: 0,
             recipients_known,
-        }
-    }
-
-    pub fn get_recipient_data(&mut self) -> (String, String, String) {
-        let slug = ask_user_nonempty("Enter the slug for the recipient: ")
-            .to_ascii_lowercase()
-            .replace(' ', "_");
-        if let Some((name, addr, _)) = self.recipients_known.get(&slug) {
-            (slug, name.clone(), addr.clone())
-        } else {
-            let name = ask_user_nonempty(format!("Enter the name of the recipient {slug}: "));
-            let addr = ask_user_nonempty(format!("Enter the address of the recipient {slug}: "));
-            self.recipients_known
-                .insert(slug.clone(), (name.clone(), addr.clone(), vec![]));
-            (slug, name, addr)
         }
     }
 }
@@ -100,26 +143,27 @@ impl InvoiceBuilder {
                 }
             }
         };
+        let inp = InvoiceInput::ask(lang.clone(), Some(&invdata.recipients_known));
         let mut builder = InvoiceBuilder {
             cfg,
             lang,
             data: invdata,
         };
-        let (fname, result) = builder.generate_invoice()?;
+        let (fname, result) = builder.generate_invoice(inp)?;
         std::fs::write("/tmp/.typst_result.typ", &result)?;
         std::fs::write(datafile, serde_json::to_string_pretty(&builder.data)?)?;
         Ok(TypstData::new(fname, result))
     }
 
     // TODO    Generate an invoice
-    pub fn generate_invoice(&mut self) -> Result<(String, String), Errcode> {
+    pub fn generate_invoice(&mut self, inp: InvoiceInput) -> Result<(String, String), Errcode> {
         // Getting necessary data before writing the code
-        let (rec_slug, rec_name, rec_addr) = self.data.get_recipient_data();
         self.data.invoice_total_count += 1;
         let current_date = Utc::now();
 
         let fname = format!(
-            "invoice_{rec_slug}_{}_{}.pdf",
+            "invoice_{}_{}_{}.pdf",
+            inp.recipient.slug,
             current_date.format("%d%m%y"),
             self.data.invoice_total_count
         );
@@ -129,7 +173,7 @@ impl InvoiceBuilder {
         write_page_settings(&mut source, footer);
         self.generate_header(&mut source);
         source += "#v(sep_par())\n";
-        self.generate_metadata(&mut source, &current_date, rec_name, rec_addr);
+        self.generate_metadata(&mut source, &inp, &current_date);
         source += "#v(sep_par())\n";
         let total_price = self.generate_transaction_table(&mut source);
         source += "#v(sep_par())\n";
@@ -155,7 +199,10 @@ impl InvoiceBuilder {
 
         let writing_logo_path = self.cfg.get_company("logo_writing");
         let writing_logo = if writing_logo_path.is_empty() {
-            format!("#text(company_name_font_size())[*{}*]", self.cfg.get_company("name"))
+            format!(
+                "#text(company_name_font_size())[*{}*]",
+                self.cfg.get_company("name")
+            )
         } else {
             format!("#image(\"{writing_logo_path}\", width: logo_width())")
         };
@@ -165,7 +212,9 @@ impl InvoiceBuilder {
             columns: (1fr, auto),
             align(left)[{writing_logo}],
             align(right)[{logo}]
-        )\n").as_str();
+        )\n"
+        )
+        .as_str();
 
         *source += format!(
             "#align(left)[
@@ -183,12 +232,10 @@ impl InvoiceBuilder {
     fn generate_metadata(
         &self,
         source: &mut String,
+        inp: &InvoiceInput,
         current_date: &DateTime<Utc>,
-        rec_name: String,
-        rec_addr: String,
     ) {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
-        let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
         *source += format!(
             "#grid(
@@ -205,14 +252,14 @@ impl InvoiceBuilder {
             ],
         )",
             self.lang.get_doctype_word("invoice", "recipient_intro"),
-            rec_name,
-            rec_addr,
+            inp.recipient.name,
+            inp.recipient.address,
             self.lang.get_doctype_word("invoice", "invoice_nb"),
             self.data.invoice_total_count,
             self.lang.get_doctype_word("invoice", "creation_date"),
             current_date_fmt,
             self.lang.get_doctype_word("invoice", "sell_date"),
-            date_sell
+            inp.date_sell,
         )
         .as_str();
     }
@@ -309,7 +356,8 @@ impl InvoiceBuilder {
     }
 
     fn generate_iban(&self, source: &mut String) {
-        *source += format!("
+        *source += format!(
+            "
             === {}
 
             #table(
@@ -324,6 +372,7 @@ impl InvoiceBuilder {
             self.cfg.get("bank", "name").as_str().unwrap(),
             self.cfg.get("bank", "iban").as_str().unwrap(),
             self.cfg.get("bank", "bic").as_str().unwrap(),
-        ).as_str();
+        )
+        .as_str();
     }
 }

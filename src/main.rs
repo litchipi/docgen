@@ -5,6 +5,7 @@ use typst::model::Document;
 
 mod codegen;
 mod config;
+mod contact;
 mod doctype;
 mod errors;
 mod fonts;

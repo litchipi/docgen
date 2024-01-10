@@ -25,7 +25,7 @@ impl ConfigDataStore {
         let Some(table) = self.data.get(key) else {
             panic!("Unable to get table {key} from config");
         };
-        
+
         let Some(res) = table.get(data) else {
             panic!("Unable to get data {key}:{data} from config");
         };

@@ -1,6 +1,14 @@
-use std::{fmt::Display, io::Write, path::PathBuf, rc::Rc, str::FromStr};
+use std::{
+    collections::HashMap, fmt::Display, io::Write, marker::PhantomData, path::PathBuf, rc::Rc,
+    str::FromStr,
+};
 
 use chrono::{DateTime, Datelike, Utc};
+use serde::{
+    de::{MapAccess, Visitor},
+    ser::SerializeMap,
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 use crate::errors::Errcode;
 
@@ -107,4 +115,69 @@ pub fn import_lang_profile(langf: &PathBuf) -> Result<LangDict, Errcode> {
     Ok(Rc::new(LangWrapper {
         data: data.as_table().unwrap().to_owned(),
     }))
+}
+
+pub fn serialize_hashmap_rc<K, T, S>(
+    data: &HashMap<K, Rc<T>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: Serialize,
+    K: Serialize,
+{
+    let mut map = serializer.serialize_map(Some(data.len()))?;
+    for (k, v) in data.into_iter() {
+        map.serialize_key(&k)?;
+        map.serialize_value(v.as_ref())?;
+    }
+    map.end()
+}
+
+struct MapVisitor<K, V> {
+    marker_key: PhantomData<K>,
+    market_val: PhantomData<V>,
+}
+
+impl<K, V> MapVisitor<K, V> {
+    fn new() -> MapVisitor<K, V> {
+        MapVisitor {
+            marker_key: PhantomData,
+            market_val: PhantomData,
+        }
+    }
+}
+
+impl<'de, K, V> Visitor<'de> for MapVisitor<K, V>
+where
+    K: std::hash::Hash + Eq + Deserialize<'de>,
+    V: Deserialize<'de>,
+{
+    type Value = HashMap<K, Rc<V>>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("Rc<Val>")
+    }
+
+    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let mut map = HashMap::with_capacity(access.size_hint().unwrap_or(1));
+
+        while let Some((key, value)) = access.next_entry()? {
+            map.insert(key, Rc::new(value));
+        }
+
+        Ok(map)
+    }
+}
+
+pub fn deserialize_hashmap_rc<'de, D, K, V>(deserialize: D) -> Result<HashMap<K, Rc<V>>, D::Error>
+where
+    D: Deserializer<'de>,
+    K: std::hash::Hash + Eq + Deserialize<'de>,
+    V: Deserialize<'de>,
+{
+    deserialize.deserialize_map(MapVisitor::new())
 }
