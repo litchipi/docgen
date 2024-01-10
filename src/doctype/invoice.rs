@@ -127,8 +127,8 @@ impl<'a> InvoiceBuilder<'a> {
         let fname = format!(
             "invoice_{}_{}_{}.pdf",
             self.inp.recipient,
+            self.data.invoices.history.len(),
             current_date.format("%d%m%y"),
-            self.data.invoices.history.len()
         );
 
         let footer = self.cfg.get("invoice", "footer").as_str().unwrap();
