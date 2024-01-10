@@ -13,24 +13,24 @@ pub struct Datastore {
 }
 
 impl Datastore {
-    pub fn import(root: &Path) -> Result<Datastore, Errcode> {
+    pub fn import(root: &Path) -> Datastore {
         if !root.exists() {
-            std::fs::create_dir(root)?;
+            std::fs::create_dir(root).expect("Unable to create data directory");
         }
 
-        let contacts = ContactBook::import(root)?;
+        let contacts = ContactBook::import(root);
         let invoices = InvoiceSavedData::import(&DocumentType::Invoice.fname(root));
         let quotes = QuotationSavedData::import(&DocumentType::Quotation.fname(root));
-        Ok(Datastore {
+        Datastore {
             contacts,
             invoices,
             quotes,
-        })
+        }
     }
 
     pub fn export(&self, root: &Path) -> Result<(), Errcode> {
-        self.invoices.export(root)?;
-        self.quotes.export(root)?;
+        DocumentType::Invoice.export_data(root, &self.invoices)?;
+        DocumentType::Quotation.export_data(root, &self.quotes)?;
         self.contacts.export(root)?;
         Ok(())
     }

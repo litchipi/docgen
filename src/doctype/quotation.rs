@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
+
 use crate::contact::Contact;
 use crate::errors::Errcode;
 use crate::Transaction;
 
+#[derive(Serialize, Deserialize)]
 pub struct QuotationSavedData {
     pub history: HashMap<String, Vec<(QuotationInput, Option<usize>)>>,
 }
@@ -16,10 +19,6 @@ impl QuotationSavedData {
         }
     }
 
-    pub fn export(&self, _root: &Path) -> Result<(), Errcode> {
-        Ok(())
-    }
-
     pub fn mark_quotation_finished(
         &mut self,
         slug: &String,
@@ -29,7 +28,7 @@ impl QuotationSavedData {
         let data = self
             .history
             .get_mut(slug)
-            .ok_or(Errcode::SlugNotFound(slug.clone()))?;
+            .ok_or(Errcode::ContactNotFound(slug.clone()))?;
         let data = data
             .get_mut(idx)
             .ok_or(Errcode::HistoryElementNotFound(idx))?;
@@ -38,6 +37,7 @@ impl QuotationSavedData {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct QuotationInput {
     pub created: String,
     pub recipient: Contact,

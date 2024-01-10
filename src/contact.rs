@@ -26,15 +26,31 @@ impl ContactBook {
         }
     }
 
-    pub fn import(root: &Path) -> Result<ContactBook, Errcode> {
-        let json_str = std::fs::read_to_string(Self::fname(root))?;
-        let data = serde_json::from_str::<serde_json::Value>(&json_str)?;
-        let data = data.as_object().unwrap().to_owned();
+    pub fn get<'a>(&'a self, slug: &String) -> &'a Contact {
+        self.0
+            .get(slug)
+            .ok_or(Errcode::ContactNotFound(slug.clone()))
+            .unwrap()
+    }
+
+    pub fn import(root: &Path) -> ContactBook {
+        let fname = Self::fname(root);
         let mut book = ContactBook(HashMap::new());
-        for (k, v) in data.into_iter() {
-            book.0.insert(k, serde_json::from_value::<Contact>(v)?);
+        if fname.is_file() {
+            let json_str = std::fs::read_to_string(Self::fname(root))
+                .expect("Unable to read data from file {fname}");
+            let data = serde_json::from_str::<serde_json::Value>(&json_str)
+                .expect("Unable to load JSON data from file {fname}");
+            let data = data.as_object().unwrap().to_owned();
+            for (k, v) in data.into_iter() {
+                book.0.insert(
+                    k,
+                    serde_json::from_value::<Contact>(v)
+                        .expect("Unable to deserialize Contact from value {v:?}"),
+                );
+            }
         }
-        Ok(book)
+        book
     }
 
     pub fn export(&self, root: &Path) -> Result<(), Errcode> {
@@ -59,7 +75,7 @@ pub struct Contact {
 
 impl Contact {
     pub fn ask(slug: Option<String>) -> Contact {
-        let slug = slug.unwrap_or(Self::ask_slug());
+        let slug = slug.unwrap_or_else(Self::ask_slug);
         let name = ask_user_nonempty("Name: ".to_string());
         let address = ask_user_nonempty("Address: ".to_string());
         Contact {
@@ -72,7 +88,7 @@ impl Contact {
     }
 
     pub fn ask_slug() -> String {
-        ask_user_nonempty("Enter the slug for the recipient: ")
+        ask_user_nonempty("Slug: ")
             .to_ascii_lowercase()
             .replace(' ', "_")
     }

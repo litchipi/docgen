@@ -4,7 +4,7 @@ use thiserror::Error;
 pub enum Errcode {
     DocTypeUnsupported(String),
     InvalidConfig(&'static str, String),
-    SlugNotFound(String),
+    ContactNotFound(String),
     HistoryElementNotFound(usize),
 
     IoError(#[from] std::io::Error),

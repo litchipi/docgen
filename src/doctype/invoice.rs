@@ -13,7 +13,7 @@ use crate::interface::utils::{ask_user, ask_user_nonempty, ask_user_parse};
 use crate::lang::LangDict;
 
 use super::quotation::{QuotationInput, QuotationSavedData};
-use super::{DocumentType, TypstData};
+use crate::doctype::TypstData;
 
 #[derive(Serialize, Deserialize)]
 pub struct InvoiceSavedData {
@@ -23,12 +23,6 @@ pub struct InvoiceSavedData {
 impl InvoiceSavedData {
     pub fn init() -> InvoiceSavedData {
         InvoiceSavedData { history: vec![] }
-    }
-
-    pub fn export(&self, root: &Path) -> Result<(), Errcode> {
-        let fname = DocumentType::Invoice.fname(root);
-        std::fs::write(fname, serde_json::to_string_pretty(&self)?)?;
-        Ok(())
     }
 
     pub fn import(fname: &Path) -> InvoiceSavedData {
@@ -50,7 +44,7 @@ impl InvoiceSavedData {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InvoiceInput {
-    pub recipient: Contact,
+    pub recipient: String,
     pub quote_nb: Option<usize>,
     date_sell: String,
     tx: Vec<(String, f64, f64)>,
@@ -65,7 +59,7 @@ impl InvoiceInput {
             None
         };
         InvoiceInput {
-            recipient: quote.recipient.clone(),
+            recipient: quote.recipient.slug.clone(),
             tx: quote.tx.clone(),
             date_sell: ask_user_nonempty("Enter the date where the sell was done: "),
             quote_nb: Some(idx),
@@ -108,7 +102,7 @@ impl InvoiceInput {
         };
 
         InvoiceInput {
-            recipient: recipient.clone(),
+            recipient: recipient.slug.clone(),
             quote_nb: None,
             date_sell,
             tx,
@@ -132,7 +126,7 @@ impl<'a> InvoiceBuilder<'a> {
 
         let fname = format!(
             "invoice_{}_{}_{}.pdf",
-            self.inp.recipient.slug,
+            self.inp.recipient,
             current_date.format("%d%m%y"),
             self.data.invoices.history.len()
         );
@@ -216,8 +210,8 @@ impl<'a> InvoiceBuilder<'a> {
             ],
         )",
             self.lang.get_doctype_word("invoice", "recipient_intro"),
-            self.inp.recipient.name,
-            self.inp.recipient.address,
+            self.data.contacts.get(&self.inp.recipient).name,
+            self.data.contacts.get(&self.inp.recipient).address,
             self.lang.get_doctype_word("invoice", "invoice_nb"),
             self.data.invoices.history.len(),
             self.lang.get_doctype_word("invoice", "creation_date"),
@@ -243,27 +237,8 @@ impl<'a> InvoiceBuilder<'a> {
         )
         .as_str();
 
-        let mut nb_tx = 1;
         let mut total_price = 0.0;
-        loop {
-            println!("\nEnter data about transaction {nb_tx}: ");
-            let descr = ask_user(format!("{word_desc}: "));
-            if descr.is_empty() {
-                break;
-            }
-
-            let units: Option<f64> = ask_user_parse(format!("{word_units}: "));
-            if units.is_none() {
-                break;
-            }
-            let units = units.unwrap();
-
-            let ppu: Option<f64> = ask_user_parse(format!("{word_ppu}: "));
-            if ppu.is_none() {
-                break;
-            }
-            let ppu = ppu.unwrap();
-
+        for (descr, units, ppu) in self.inp.tx.iter() {
             let total = units * ppu;
             *source += format!(
                 "
@@ -271,7 +246,6 @@ impl<'a> InvoiceBuilder<'a> {
             "
             )
             .as_str();
-            nb_tx += 1;
             total_price += total;
         }
 
@@ -383,7 +357,7 @@ pub fn generate(
     if let Some(quote_nb) = inp.quote_nb {
         let invoice_nb = data.invoices.history.len();
         data.quotes
-            .mark_quotation_finished(&inp.recipient.slug, quote_nb, invoice_nb)?;
+            .mark_quotation_finished(&inp.recipient, quote_nb, invoice_nb)?;
     }
     Ok(TypstData::new(fname, result))
 }

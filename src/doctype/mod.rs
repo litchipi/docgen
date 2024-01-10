@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
+
 use crate::config::ConfigStore;
 use crate::data::Datastore;
 use crate::errors::Errcode;
@@ -35,7 +37,7 @@ impl DocumentType {
         lang: &LangDict,
         datadir: &Path,
     ) -> Result<TypstData, Errcode> {
-        let mut data = Datastore::import(datadir)?;
+        let mut data = Datastore::import(datadir);
 
         let res = match self {
             DocumentType::Invoice => invoice::generate(cfg, lang, &mut data),
@@ -47,6 +49,12 @@ impl DocumentType {
 
     pub fn fname(&self, root: &Path) -> PathBuf {
         root.join(self.to_string()).with_extension("json")
+    }
+
+    pub fn export_data<T: Serialize>(&self, root: &Path, data: &T) -> Result<(), Errcode> {
+        let fname = self.fname(root);
+        std::fs::write(fname, serde_json::to_string(data)?)?;
+        Ok(())
     }
 }
 
