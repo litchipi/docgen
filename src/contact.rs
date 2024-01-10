@@ -1,14 +1,17 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
-use crate::interface::utils::ask_user_nonempty;
 use crate::errors::Errcode;
+use crate::interface::utils::ask_user_nonempty;
 
 pub struct ContactBook(HashMap<String, Contact>);
 
 impl ContactBook {
-    fn fname(root: &PathBuf) -> PathBuf {
+    fn fname(root: &Path) -> PathBuf {
         root.join("contacts").with_extension("json")
     }
 
@@ -23,7 +26,7 @@ impl ContactBook {
         }
     }
 
-    pub fn import(root: &PathBuf) -> Result<ContactBook, Errcode> {
+    pub fn import(root: &Path) -> Result<ContactBook, Errcode> {
         let json_str = std::fs::read_to_string(Self::fname(root))?;
         let data = serde_json::from_str::<serde_json::Value>(&json_str)?;
         let data = data.as_object().unwrap().to_owned();
@@ -34,7 +37,7 @@ impl ContactBook {
         Ok(book)
     }
 
-    pub fn export(&self, root: &PathBuf) -> Result<(), Errcode> {
+    pub fn export(&self, root: &Path) -> Result<(), Errcode> {
         let mut map = serde_json::Map::new();
         for (k, v) in self.0.iter() {
             map.insert(k.clone(), serde_json::to_value(v)?);
@@ -44,7 +47,6 @@ impl ContactBook {
         Ok(())
     }
 }
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Contact {
@@ -58,8 +60,8 @@ pub struct Contact {
 impl Contact {
     pub fn ask(slug: Option<String>) -> Contact {
         let slug = slug.unwrap_or(Self::ask_slug());
-        let name = ask_user_nonempty(format!("Name: "));
-        let address = ask_user_nonempty(format!("Address: "));
+        let name = ask_user_nonempty("Name: ".to_string());
+        let address = ask_user_nonempty("Address: ".to_string());
         Contact {
             slug,
             name,

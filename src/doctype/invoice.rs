@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -12,8 +12,8 @@ use crate::interface::select_from_list;
 use crate::interface::utils::{ask_user, ask_user_nonempty, ask_user_parse};
 use crate::lang::LangDict;
 
-use super::quotation::{QuotationSavedData, QuotationInput};
-use super::{TypstData, DocumentType};
+use super::quotation::{QuotationInput, QuotationSavedData};
+use super::{DocumentType, TypstData};
 
 #[derive(Serialize, Deserialize)]
 pub struct InvoiceSavedData {
@@ -22,24 +22,24 @@ pub struct InvoiceSavedData {
 
 impl InvoiceSavedData {
     pub fn init() -> InvoiceSavedData {
-        InvoiceSavedData {
-            history: vec![],
-        }
+        InvoiceSavedData { history: vec![] }
     }
 
-    pub fn export(&self, root: &PathBuf) -> Result<(), Errcode> {
-        let datafile = root.join(DocumentType::Invoice.to_string()).with_extension(".json");
+    pub fn export(&self, root: &Path) -> Result<(), Errcode> {
+        let datafile = root
+            .join(DocumentType::Invoice.to_string())
+            .with_extension(".json");
         std::fs::write(datafile, serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
 
-    pub fn import(fname: &PathBuf) -> InvoiceSavedData {
+    pub fn import(fname: &Path) -> InvoiceSavedData {
         if !fname.is_file() {
             return InvoiceSavedData::init();
         }
 
-        let json_str = std::fs::read_to_string(&fname)
-            .expect("Unable to read JSON data from {fname}");
+        let json_str =
+            std::fs::read_to_string(fname).expect("Unable to read JSON data from {fname}");
         match serde_json::from_str::<Self>(json_str.as_str()) {
             Ok(d) => d,
             Err(_) => {
@@ -178,11 +178,7 @@ impl<'a> InvoiceBuilder<'a> {
         .as_str();
     }
 
-    fn generate_metadata(
-        &self,
-        source: &mut String,
-        current_date: &DateTime<Utc>,
-    ) {
+    fn generate_metadata(&self, source: &mut String, current_date: &DateTime<Utc>) {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
 
         *source += format!(
@@ -325,17 +321,21 @@ impl<'a> InvoiceBuilder<'a> {
     }
 }
 
-fn get_inputs(quotedata: &QuotationSavedData, lang: &LangDict, contacts: &mut ContactBook) -> InvoiceInput {
+fn get_inputs(
+    quotedata: &QuotationSavedData,
+    lang: &LangDict,
+    contacts: &mut ContactBook,
+) -> InvoiceInput {
     let slug = Contact::ask_slug();
     if let Some(qhist) = quotedata.history.get(&slug) {
         let qhist = qhist
-            .into_iter()
+            .iter()
             .enumerate()
             .filter(|(_, (_, i))| i.is_none())
             .collect::<Vec<(usize, &(QuotationInput, Option<usize>))>>();
         let filtered_idx = select_from_list(&qhist, |(_, (inp, _))| inp.single_line_display());
         let idx = qhist.get(filtered_idx).unwrap().0;
-        let quote = &qhist.get(filtered_idx).unwrap().1.0;
+        let quote = &qhist.get(filtered_idx).unwrap().1 .0;
         InvoiceInput {
             recipient: quote.recipient.clone(),
             tx: quote.tx.clone(),
@@ -344,7 +344,7 @@ fn get_inputs(quotedata: &QuotationSavedData, lang: &LangDict, contacts: &mut Co
         }
     } else {
         let recipient = contacts.get_or_add(slug);
-        InvoiceInput::ask(recipient, &lang)
+        InvoiceInput::ask(recipient, lang)
     }
 }
 
@@ -353,16 +353,21 @@ pub fn generate(
     lang: &LangDict,
     data: &mut Datastore,
 ) -> Result<TypstData, Errcode> {
-
     let inp = get_inputs(&data.quotes, lang, &mut data.contacts);
-    let mut builder = InvoiceBuilder { cfg, lang, data, inp: &inp };
+    let mut builder = InvoiceBuilder {
+        cfg,
+        lang,
+        data,
+        inp: &inp,
+    };
     let (fname, result) = builder.generate_invoice()?;
     // For debug
     std::fs::write("/tmp/.typst_result.typ", &result)?;
 
     if let Some(quote_nb) = inp.quote_nb {
         let invoice_nb = data.invoices.history.len();
-        data.quotes.mark_quotation_finished(&inp.recipient.slug, quote_nb, invoice_nb)?;
+        data.quotes
+            .mark_quotation_finished(&inp.recipient.slug, quote_nb, invoice_nb)?;
     }
     Ok(TypstData::new(fname, result))
 }

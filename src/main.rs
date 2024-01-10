@@ -3,15 +3,15 @@ use std::path::PathBuf;
 use clap::Parser;
 use typst::model::Document;
 
-mod data;
-mod interface;
-mod lang;
-mod contact;
 mod codegen;
 mod config;
+mod contact;
+mod data;
 mod doctype;
 mod errors;
 mod fonts;
+mod interface;
+mod lang;
 mod style;
 mod world;
 

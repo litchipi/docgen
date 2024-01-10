@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::config::ConfigStore;
 use crate::data::Datastore;
@@ -33,7 +33,7 @@ impl DocumentType {
         &self,
         cfg: &ConfigStore,
         lang: &LangDict,
-        datadir: &PathBuf,
+        datadir: &Path,
     ) -> Result<TypstData, Errcode> {
         let mut data = Datastore::import(datadir)?;
 
@@ -45,7 +45,7 @@ impl DocumentType {
         Ok(res)
     }
 
-    pub fn fname(&self, root: &PathBuf) -> PathBuf {
+    pub fn fname(&self, root: &Path) -> PathBuf {
         root.join(self.to_string()).with_extension(".json")
     }
 }
