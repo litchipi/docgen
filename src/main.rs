@@ -7,10 +7,10 @@ mod codegen;
 mod config;
 mod doctype;
 mod errors;
+mod fonts;
 mod style;
 mod utils;
 mod world;
-mod fonts;
 
 use doctype::DocumentType;
 use errors::Errcode;
@@ -60,8 +60,7 @@ fn main() {
     let config = import_config(&root.join("config.toml")).expect("Unable to load config");
 
     println!("[*] Initializing Typst compilation context");
-    let mut world =
-        TypstWorld::new(&root, doctype).expect("Unable to create Typst context");
+    let mut world = TypstWorld::new(&root, doctype).expect("Unable to create Typst context");
 
     println!("[*] Generating the source code");
     let source = doctype

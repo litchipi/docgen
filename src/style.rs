@@ -1,10 +1,8 @@
-
 use std::path::PathBuf;
 
 use toml::{map::Map, Value};
 
 use crate::errors::Errcode;
-
 
 const NO_QUOTE_LIST: &[&str] = &["pt", "%", "fr"];
 const FCT_LIST: &[&str] = &["rgb"];
@@ -80,9 +78,6 @@ pub fn import_style(stylefile: &PathBuf) -> Result<Style, Errcode> {
     }
 }
 
-pub fn generate_style_variables(
-    style: &Style,
-    doctype: String,
-) -> String {
-    generate_variable_for_style(&style, |key| key == &doctype)
+pub fn generate_style_variables(style: &Style, doctype: String) -> String {
+    generate_variable_for_style(style, |key| key == &doctype)
 }

@@ -259,16 +259,27 @@ impl InvoiceBuilder {
         let (tax_fmt, tax_amnt) = if self.cfg.get_bool("company", "tax_applicable") {
             let tax_rate: f64 = self.cfg.get_float("company", "tax_rate");
             let amnt = total_price * tax_rate;
-            (format!("[*{} {:.2}%*], [{} {curr_sym}]",
-                self.lang.get_doctype_word("invoice", "tax_name"),
-                tax_rate * 100.0,
+            (
+                format!(
+                    "[*{} {:.2}%*], [{} {curr_sym}]",
+                    self.lang.get_doctype_word("invoice", "tax_name"),
+                    tax_rate * 100.0,
+                    amnt,
+                ),
                 amnt,
-            ), amnt)
+            )
         } else {
-            (format!("[*{}*], []", self.lang.get_doctype_word("invoice", "tax_not_applicable")), 0.0)
+            (
+                format!(
+                    "[*{}*], []",
+                    self.lang.get_doctype_word("invoice", "tax_not_applicable")
+                ),
+                0.0,
+            )
         };
 
-        *source += format!("#table(
+        *source += format!(
+            "#table(
             stroke: table_color(),
             columns: (auto, auto),
             [*{}*], [{total_price:.2} {curr_sym}],
@@ -276,8 +287,10 @@ impl InvoiceBuilder {
             [*{}*], [{:.2} {curr_sym}],
         )",
             self.lang.get_doctype_word("invoice", "total_price_no_tax"),
-            self.lang.get_doctype_word("invoice", "total_price_with_tax"),
+            self.lang
+                .get_doctype_word("invoice", "total_price_with_tax"),
             total_price + tax_amnt
-        ).as_str();
+        )
+        .as_str();
     }
 }

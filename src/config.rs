@@ -26,11 +26,15 @@ impl ConfigDataStore {
     }
 
     pub fn get_bool(&self, key: &str, data: &str) -> bool {
-        self.get(key, data).as_bool().expect("Unable to convert {key}:{data} to boolean")
+        self.get(key, data)
+            .as_bool()
+            .expect("Unable to convert {key}:{data} to boolean")
     }
 
     pub fn get_float(&self, key: &str, data: &str) -> f64 {
-        self.get(key, data).as_float().expect("Unable to convert {key}:{data} to float")
+        self.get(key, data)
+            .as_float()
+            .expect("Unable to convert {key}:{data} to float")
     }
 }
 

@@ -14,8 +14,8 @@ use typst::{Library, World};
 
 use crate::doctype::{DocumentType, TypstData};
 use crate::errors::Errcode;
-use crate::style::{generate_style_variables, import_style};
 use crate::fonts::import_fonts;
+use crate::style::{generate_style_variables, import_style};
 
 type AssetStore = HashMap<PathBuf, Bytes>;
 
@@ -29,10 +29,7 @@ pub struct TypstWorld {
 }
 
 impl TypstWorld {
-    pub fn new(
-        root: &Path,
-        doctype: DocumentType,
-    ) -> Result<TypstWorld, Errcode> {
+    pub fn new(root: &Path, doctype: DocumentType) -> Result<TypstWorld, Errcode> {
         let style = import_style(&root.join("style.toml"))?;
         let fonts = import_fonts(&style, &root.join("fonts"))?;
         let font_book = FontBook::from_fonts(&fonts);
