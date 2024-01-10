@@ -14,7 +14,7 @@ use typst::{Library, World};
 
 use crate::doctype::{DocumentType, TypstData};
 use crate::errors::Errcode;
-use crate::fonts::{import_fonts, get_all_fonts};
+use crate::fonts::{get_all_fonts, import_fonts};
 use crate::style::{generate_style_variables, import_style};
 
 type AssetStore = HashMap<PathBuf, Bytes>;

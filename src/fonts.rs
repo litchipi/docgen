@@ -34,8 +34,11 @@ pub fn get_all_fonts(style: &Style, fonts_dir: &PathBuf) -> Result<(), Errcode> 
 }
 
 fn dafont_name(name: &str) -> String {
-    let name = name.chars().filter(|c| c.is_whitespace() || c.is_alphanumeric()).collect::<String>();
-    let name = name.replace("  ", " ").replace(" ", "_");
+    let name = name
+        .chars()
+        .filter(|c| c.is_whitespace() || c.is_alphanumeric())
+        .collect::<String>();
+    let name = name.replace("  ", " ").replace(' ', "_");
     name.to_lowercase()
 }
 
@@ -44,13 +47,14 @@ fn download_font(font_name: &str, dir: &PathBuf) -> Result<(), Errcode> {
 
     let dafont_name = dafont_name(font_name);
     println!("Donwloading font {dafont_name}");
-    let data = reqwest::blocking::get(format!(
-        "https://dl.dafont.com/dl/?f={dafont_name}",
-    ))?;
+    let data = reqwest::blocking::get(format!("https://dl.dafont.com/dl/?f={dafont_name}",))?;
     data.error_for_status_ref()?;
     let data = data.bytes()?;
     if data.is_empty() {
-        return Err(Errcode::InvalidConfig("font", format!("Font {dafont_name:?} doesn't exist")));
+        return Err(Errcode::InvalidConfig(
+            "font",
+            format!("Font {dafont_name:?} doesn't exist"),
+        ));
     }
 
     let data = std::io::Cursor::new(data.as_ref());
@@ -76,13 +80,17 @@ fn download_font(font_name: &str, dir: &PathBuf) -> Result<(), Errcode> {
 
 fn ensure_font_exist(dir: &PathBuf, name: &str) -> Result<(), Errcode> {
     let mut exists = false;
-    let name_variants = vec![
-        name.replace(" ", ""),
-    ];
+    let name_variants = vec![name.replace(' ', "")];
     for path in std::fs::read_dir(dir)? {
         let path = path?.path();
         // Pretty bad check of a font name, but should be enough
-        let fname = path.with_extension("").file_name().unwrap().to_str().unwrap().to_string();
+        let fname = path
+            .with_extension("")
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
         if name_variants.iter().any(|n| &fname == n) {
             exists = true;
             break;
@@ -90,7 +98,9 @@ fn ensure_font_exist(dir: &PathBuf, name: &str) -> Result<(), Errcode> {
     }
 
     if !exists {
-        let dl_from_dafont = ask_user(format!("Font {name} not installed in {dir:?}, do you wish to download it from dafont ? [y/N] "));
+        let dl_from_dafont = ask_user(format!(
+            "Font {name} not installed in {dir:?}, do you wish to download it from dafont ? [y/N] "
+        ));
         if dl_from_dafont.is_empty() || (dl_from_dafont.to_lowercase() == "y") {
             download_font(name, &dir.join(name))?;
         }
@@ -101,5 +111,8 @@ fn ensure_font_exist(dir: &PathBuf, name: &str) -> Result<(), Errcode> {
 #[test]
 fn generate_dafont_names() {
     assert_eq!(dafont_name("A B"), "a_b");
-    assert_eq!(dafont_name("Champagne & Limousines"), "champagne_limousines");
+    assert_eq!(
+        dafont_name("Champagne & Limousines"),
+        "champagne_limousines"
+    );
 }
