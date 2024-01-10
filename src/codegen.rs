@@ -2,7 +2,7 @@ pub fn sanitize(data: &str) -> String {
     data.replace('@', "\\@").replace('#', "\\#")
 }
 
-pub fn write_page_settings(buffer: &mut String, footer: String) {
+pub fn write_page_settings(buffer: &mut String, footer: &str) {
     *buffer += format!(
         "#set page(
         paper: paper_type(),

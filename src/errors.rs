@@ -4,6 +4,7 @@ use thiserror::Error;
 pub enum Errcode {
     DocTypeUnsupported(String),
     InvalidData(&'static str),
+    InvalidConfig(&'static str, String),
 
     IoError(#[from] std::io::Error),
     TomlDecode(#[from] toml::de::Error),

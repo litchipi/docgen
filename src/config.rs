@@ -21,7 +21,7 @@ impl ConfigDataStore {
             .to_string()
     }
 
-    fn get<'a>(&'a self, key: &str, data: &str) -> &'a toml::Value {
+    pub fn get<'a>(&'a self, key: &str, data: &str) -> &'a toml::Value {
         self.data.get(key).unwrap().get(data).unwrap()
     }
 

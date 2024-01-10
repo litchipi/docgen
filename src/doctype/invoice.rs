@@ -124,7 +124,7 @@ impl InvoiceBuilder {
             self.data.invoice_total_count
         );
 
-        let footer = self.lang.get_doctype_word("invoice", "footer");
+        let footer = self.cfg.get("invoice", "footer").as_str().unwrap();
         let mut source = "".to_string();
         write_page_settings(&mut source, footer);
         self.generate_header(&mut source);
@@ -261,7 +261,7 @@ impl InvoiceBuilder {
             let amnt = total_price * tax_rate;
             (
                 format!(
-                    "[*{} {:.2}%*], [{} {curr_sym}]",
+                    "[*{} {:.2}%*], [{:.2} {curr_sym}]",
                     self.lang.get_doctype_word("invoice", "tax_name"),
                     tax_rate * 100.0,
                     amnt,
