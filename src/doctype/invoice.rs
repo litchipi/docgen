@@ -26,10 +26,8 @@ impl InvoiceSavedData {
     }
 
     pub fn export(&self, root: &Path) -> Result<(), Errcode> {
-        let datafile = root
-            .join(DocumentType::Invoice.to_string())
-            .with_extension(".json");
-        std::fs::write(datafile, serde_json::to_string_pretty(&self)?)?;
+        let fname = DocumentType::Invoice.fname(root);
+        std::fs::write(fname, serde_json::to_string_pretty(&self)?)?;
         Ok(())
     }
 

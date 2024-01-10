@@ -46,7 +46,7 @@ impl DocumentType {
     }
 
     pub fn fname(&self, root: &Path) -> PathBuf {
-        root.join(self.to_string()).with_extension(".json")
+        root.join(self.to_string()).with_extension("json")
     }
 }
 
