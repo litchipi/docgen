@@ -56,11 +56,25 @@ pub struct InvoiceInput {
     pub quote_nb: Option<usize>,
     date_sell: String,
     tx: Vec<(String, f64, f64)>,
-    // TODO    Add more data here (tax rate, some cfg at the time of creation, date of creation)
+    tax_rate: Option<f64>,
 }
 
 impl InvoiceInput {
-    pub fn ask(recipient: Contact, lang: &LangDict) -> InvoiceInput {
+    pub fn from_quote(config: &ConfigStore, idx: usize, quote: &QuotationInput) -> InvoiceInput {
+        let tax_rate = if config.get_bool("invoice", "tax_applicable") {
+            Some(config.get_float("invoice", "tax_rate"))
+        } else {
+            None
+        };
+        InvoiceInput {
+            recipient: quote.recipient.clone(),
+            tx: quote.tx.clone(),
+            date_sell: ask_user_nonempty("Enter the date where the sell was done: "),
+            quote_nb: Some(idx),
+            tax_rate,
+        }
+    }
+    pub fn ask(config: &ConfigStore, recipient: Contact, lang: &LangDict) -> InvoiceInput {
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
         let word_desc = lang.get_doctype_word("invoice", "tx_item_description");
@@ -88,11 +102,19 @@ impl InvoiceInput {
             let ppu = ppu.unwrap();
             tx.push((descr, units, ppu));
         }
+
+        let tax_rate = if config.get_bool("invoice", "tax_applicable") {
+            Some(config.get_float("invoice", "tax_rate"))
+        } else {
+            None
+        };
+
         InvoiceInput {
             recipient: recipient.clone(),
             quote_nb: None,
             date_sell,
             tx,
+            tax_rate,
         }
     }
 }
@@ -322,6 +344,7 @@ impl<'a> InvoiceBuilder<'a> {
 }
 
 fn get_inputs(
+    config: &ConfigStore,
     quotedata: &QuotationSavedData,
     lang: &LangDict,
     contacts: &mut ContactBook,
@@ -336,15 +359,10 @@ fn get_inputs(
         let filtered_idx = select_from_list(&qhist, |(_, (inp, _))| inp.single_line_display());
         let idx = qhist.get(filtered_idx).unwrap().0;
         let quote = &qhist.get(filtered_idx).unwrap().1 .0;
-        InvoiceInput {
-            recipient: quote.recipient.clone(),
-            tx: quote.tx.clone(),
-            date_sell: ask_user_nonempty("Enter the date where the sell was done: "),
-            quote_nb: Some(idx),
-        }
+        InvoiceInput::from_quote(config, idx, quote)
     } else {
         let recipient = contacts.get_or_add(slug);
-        InvoiceInput::ask(recipient, lang)
+        InvoiceInput::ask(config, recipient, lang)
     }
 }
 
@@ -353,7 +371,7 @@ pub fn generate(
     lang: &LangDict,
     data: &mut Datastore,
 ) -> Result<TypstData, Errcode> {
-    let inp = get_inputs(&data.quotes, lang, &mut data.contacts);
+    let inp = get_inputs(cfg, &data.quotes, lang, &mut data.contacts);
     let mut builder = InvoiceBuilder {
         cfg,
         lang,
