@@ -10,6 +10,7 @@ mod errors;
 mod style;
 mod utils;
 mod world;
+mod fonts;
 
 use doctype::DocumentType;
 use errors::Errcode;
