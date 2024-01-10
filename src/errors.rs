@@ -3,8 +3,9 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Errcode {
     DocTypeUnsupported(String),
-    InvalidData(&'static str),
     InvalidConfig(&'static str, String),
+    SlugNotFound(String),
+    HistoryElementNotFound(usize),
 
     IoError(#[from] std::io::Error),
     TomlDecode(#[from] toml::de::Error),

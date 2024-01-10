@@ -1,6 +1,6 @@
 use crate::errors::Errcode;
 use crate::style::Style;
-use crate::utils::ask_user;
+use crate::interface::utils::ask_user;
 use std::io::Read;
 use std::path::PathBuf;
 use typst::foundations::Bytes;

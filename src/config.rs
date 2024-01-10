@@ -1,15 +1,14 @@
-use std::{path::PathBuf, rc::Rc};
+use std::path::PathBuf;
 
 use toml::map::Map;
 
 use crate::errors::Errcode;
 
-pub type ConfigStore = Rc<ConfigDataStore>;
-pub struct ConfigDataStore {
+pub struct ConfigStore {
     data: Map<String, toml::Value>,
 }
 
-impl ConfigDataStore {
+impl ConfigStore {
     pub fn get_company(&self, data: &str) -> String {
         self.data
             .get("company")
@@ -52,9 +51,9 @@ pub fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {
     let default_config = default_config.as_table().unwrap().to_owned();
     if !config_file.exists() {
         std::fs::write(config_file, default_config_str)?;
-        return Ok(Rc::new(ConfigDataStore {
+        return Ok(ConfigStore {
             data: default_config,
-        }));
+        });
     }
     assert!(config_file.is_file());
 
@@ -66,5 +65,5 @@ pub fn import_config(config_file: &PathBuf) -> Result<ConfigStore, Errcode> {
         }
     }
     std::fs::write(config_file, toml::to_string(&config)?)?;
-    Ok(Rc::new(ConfigDataStore { data: config }))
+    Ok(ConfigStore { data: config })
 }

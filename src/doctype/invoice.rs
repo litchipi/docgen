@@ -1,49 +1,66 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc};
+use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
-use crate::{
-    codegen::{sanitize, write_page_settings},
-    config::ConfigStore,
-    contact::{Contact, ContactBook},
-    errors::Errcode,
-    utils::{ask_user, ask_user_nonempty, ask_user_parse, LangDict},
-};
+use crate::codegen::{sanitize, write_page_settings};
+use crate::config::ConfigStore;
+use crate::contact::{Contact, ContactBook};
+use crate::data::Datastore;
+use crate::errors::Errcode;
+use crate::interface::select_from_list;
+use crate::interface::utils::{ask_user, ask_user_nonempty, ask_user_parse};
+use crate::lang::LangDict;
 
-use super::TypstData;
+use super::quotation::{QuotationSavedData, QuotationInput};
+use super::{TypstData, DocumentType};
 
-pub struct InvoiceInput {
-    recipient: Rc<Contact>,
-    date_sell: String,
-    tx: Vec<(String, f64, f64)>,
+#[derive(Serialize, Deserialize)]
+pub struct InvoiceSavedData {
+    pub history: Vec<InvoiceInput>,
 }
 
-impl InvoiceInput {
-    pub fn new(
-        rslug: String,
-        rname: String,
-        raddr: String,
-        date_sell: String,
-        tx: Vec<(String, f64, f64)>,
-    ) -> InvoiceInput {
-        InvoiceInput {
-            recipient: Rc::new(Contact::new(rslug, rname, raddr)),
-            date_sell,
-            tx,
+impl InvoiceSavedData {
+    pub fn init() -> InvoiceSavedData {
+        InvoiceSavedData {
+            history: vec![],
         }
     }
 
-    pub fn ask(lang: LangDict, known: Option<&ContactBook>) -> InvoiceInput {
-        let slug = Contact::ask_slug();
-        let recipient = if let Some(contact) = known.map(|k| k.get(&slug)).flatten() {
-            (*contact).clone()
-        } else {
-            println!("Enter the informations related to the recipient");
-            Rc::new(Contact::ask(Some(slug)))
-        };
+    pub fn export(&self, root: &PathBuf) -> Result<(), Errcode> {
+        let datafile = root.join(DocumentType::Invoice.to_string()).with_extension(".json");
+        std::fs::write(datafile, serde_json::to_string_pretty(&self)?)?;
+        Ok(())
+    }
 
+    pub fn import(fname: &PathBuf) -> InvoiceSavedData {
+        if !fname.is_file() {
+            return InvoiceSavedData::init();
+        }
+
+        let json_str = std::fs::read_to_string(&fname)
+            .expect("Unable to read JSON data from {fname}");
+        match serde_json::from_str::<Self>(json_str.as_str()) {
+            Ok(d) => d,
+            Err(_) => {
+                println!("Failed to import the invoice data");
+                InvoiceSavedData::init()
+            }
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct InvoiceInput {
+    pub recipient: Contact,
+    pub quote_nb: Option<usize>,
+    date_sell: String,
+    tx: Vec<(String, f64, f64)>,
+    // TODO    Add more data here (tax rate, some cfg at the time of creation, date of creation)
+}
+
+impl InvoiceInput {
+    pub fn ask(recipient: Contact, lang: &LangDict) -> InvoiceInput {
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
         let word_desc = lang.get_doctype_word("invoice", "tx_item_description");
@@ -72,100 +89,32 @@ impl InvoiceInput {
             tx.push((descr, units, ppu));
         }
         InvoiceInput {
-            recipient,
+            recipient: recipient.clone(),
+            quote_nb: None,
             date_sell,
             tx,
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct InvoiceSavedData {
-    invoice_total_count: usize,
-
-    #[serde(serialize_with = "crate::utils::serialize_hashmap_rc")]
-    #[serde(deserialize_with = "crate::utils::deserialize_hashmap_rc")]
-    recipients_known: HashMap<String, Rc<Contact>>,
+pub struct InvoiceBuilder<'a> {
+    cfg: &'a ConfigStore,
+    lang: &'a LangDict,
+    data: &'a mut Datastore,
+    inp: &'a InvoiceInput,
 }
 
-impl InvoiceSavedData {
-    pub fn init() -> InvoiceSavedData {
-        InvoiceSavedData {
-            invoice_total_count: 0,
-            recipients_known: HashMap::new(),
-        }
-    }
-
-    pub fn partial_import(map: &Map<String, Value>) -> InvoiceSavedData {
-        let mut recipients_known = HashMap::new();
-        if let Some(data) = map.get("recipients_known").and_then(|n| n.as_object()) {
-            for (key, val) in data.iter() {
-                let Some(val) = val.as_object() else {
-                    println!("WARN Unable to import data for recipient {key}");
-                    continue;
-                };
-
-                let contact = Contact::partial_import(key.clone(), val);
-                recipients_known.insert(key.clone(), Rc::new(contact));
-            }
-        }
-        InvoiceSavedData {
-            invoice_total_count: 0,
-            recipients_known,
-        }
-    }
-}
-
-pub struct InvoiceBuilder {
-    cfg: ConfigStore,
-    data: InvoiceSavedData,
-    lang: LangDict,
-}
-
-impl InvoiceBuilder {
-    pub fn generate(
-        cfg: ConfigStore,
-        lang: LangDict,
-        datafile: PathBuf,
-    ) -> Result<TypstData, Errcode> {
-        let invdata = if !datafile.is_file() {
-            InvoiceSavedData::init()
-        } else {
-            let json_str = std::fs::read_to_string(&datafile)?;
-            match serde_json::from_str::<InvoiceSavedData>(&json_str) {
-                Ok(data) => data,
-                Err(_) => {
-                    let json_map: Value = serde_json::from_str(&json_str)?;
-                    let json_map = json_map
-                        .as_object()
-                        .ok_or(Errcode::InvalidData("invoice"))?;
-                    InvoiceSavedData::partial_import(json_map)
-                }
-            }
-        };
-        let inp = InvoiceInput::ask(lang.clone(), Some(&invdata.recipients_known));
-        let mut builder = InvoiceBuilder {
-            cfg,
-            lang,
-            data: invdata,
-        };
-        let (fname, result) = builder.generate_invoice(inp)?;
-        std::fs::write("/tmp/.typst_result.typ", &result)?;
-        std::fs::write(datafile, serde_json::to_string_pretty(&builder.data)?)?;
-        Ok(TypstData::new(fname, result))
-    }
-
-    // TODO    Generate an invoice
-    pub fn generate_invoice(&mut self, inp: InvoiceInput) -> Result<(String, String), Errcode> {
+impl<'a> InvoiceBuilder<'a> {
+    pub fn generate_invoice(&mut self) -> Result<(String, String), Errcode> {
         // Getting necessary data before writing the code
-        self.data.invoice_total_count += 1;
+        self.data.invoices.history.push(self.inp.clone());
         let current_date = Utc::now();
 
         let fname = format!(
             "invoice_{}_{}_{}.pdf",
-            inp.recipient.slug,
+            self.inp.recipient.slug,
             current_date.format("%d%m%y"),
-            self.data.invoice_total_count
+            self.data.invoices.history.len()
         );
 
         let footer = self.cfg.get("invoice", "footer").as_str().unwrap();
@@ -173,7 +122,7 @@ impl InvoiceBuilder {
         write_page_settings(&mut source, footer);
         self.generate_header(&mut source);
         source += "#v(sep_par())\n";
-        self.generate_metadata(&mut source, &inp, &current_date);
+        self.generate_metadata(&mut source, &current_date);
         source += "#v(sep_par())\n";
         let total_price = self.generate_transaction_table(&mut source);
         source += "#v(sep_par())\n";
@@ -232,7 +181,6 @@ impl InvoiceBuilder {
     fn generate_metadata(
         &self,
         source: &mut String,
-        inp: &InvoiceInput,
         current_date: &DateTime<Utc>,
     ) {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
@@ -252,14 +200,14 @@ impl InvoiceBuilder {
             ],
         )",
             self.lang.get_doctype_word("invoice", "recipient_intro"),
-            inp.recipient.name,
-            inp.recipient.address,
+            self.inp.recipient.name,
+            self.inp.recipient.address,
             self.lang.get_doctype_word("invoice", "invoice_nb"),
-            self.data.invoice_total_count,
+            self.data.invoices.history.len(),
             self.lang.get_doctype_word("invoice", "creation_date"),
             current_date_fmt,
             self.lang.get_doctype_word("invoice", "sell_date"),
-            inp.date_sell,
+            self.inp.date_sell,
         )
         .as_str();
     }
@@ -375,4 +323,46 @@ impl InvoiceBuilder {
         )
         .as_str();
     }
+}
+
+fn get_inputs(quotedata: &QuotationSavedData, lang: &LangDict, contacts: &mut ContactBook) -> InvoiceInput {
+    let slug = Contact::ask_slug();
+    if let Some(qhist) = quotedata.history.get(&slug) {
+        let qhist = qhist
+            .into_iter()
+            .enumerate()
+            .filter(|(_, (_, i))| i.is_none())
+            .collect::<Vec<(usize, &(QuotationInput, Option<usize>))>>();
+        let filtered_idx = select_from_list(&qhist, |(_, (inp, _))| inp.single_line_display());
+        let idx = qhist.get(filtered_idx).unwrap().0;
+        let quote = &qhist.get(filtered_idx).unwrap().1.0;
+        InvoiceInput {
+            recipient: quote.recipient.clone(),
+            tx: quote.tx.clone(),
+            date_sell: ask_user_nonempty("Enter the date where the sell was done: "),
+            quote_nb: Some(idx),
+        }
+    } else {
+        let recipient = contacts.get_or_add(slug);
+        InvoiceInput::ask(recipient, &lang)
+    }
+}
+
+pub fn generate(
+    cfg: &ConfigStore,
+    lang: &LangDict,
+    data: &mut Datastore,
+) -> Result<TypstData, Errcode> {
+
+    let inp = get_inputs(&data.quotes, lang, &mut data.contacts);
+    let mut builder = InvoiceBuilder { cfg, lang, data, inp: &inp };
+    let (fname, result) = builder.generate_invoice()?;
+    // For debug
+    std::fs::write("/tmp/.typst_result.typ", &result)?;
+
+    if let Some(quote_nb) = inp.quote_nb {
+        let invoice_nb = data.invoices.history.len();
+        data.quotes.mark_quotation_finished(&inp.recipient.slug, quote_nb, invoice_nb)?;
+    }
+    Ok(TypstData::new(fname, result))
 }

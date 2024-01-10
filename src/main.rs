@@ -3,21 +3,26 @@ use std::path::PathBuf;
 use clap::Parser;
 use typst::model::Document;
 
+mod data;
+mod interface;
+mod lang;
+mod contact;
 mod codegen;
 mod config;
-mod contact;
 mod doctype;
 mod errors;
 mod fonts;
 mod style;
-mod utils;
 mod world;
 
 use doctype::DocumentType;
 use errors::Errcode;
 use world::TypstWorld;
 
-use crate::{config::import_config, utils::import_lang_profile};
+use crate::config::import_config;
+use crate::lang::import_lang_profile;
+
+pub type Transaction = (String, f64, f64);
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -65,7 +70,7 @@ fn main() {
 
     println!("[*] Generating the source code");
     let source = doctype
-        .generate_typst(config.clone(), lang.clone(), &root.join("data"))
+        .generate_typst(&config, &lang, &root.join("data"))
         .expect("Unable to generate typst code");
     if !args.outdir.exists() {
         std::fs::create_dir_all(&args.outdir).expect("Unable to create output directory");

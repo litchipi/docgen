@@ -1,11 +1,50 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
-use crate::utils::{ask_user_nonempty, map_get_str_or_ask};
+use crate::interface::utils::ask_user_nonempty;
+use crate::errors::Errcode;
 
-pub type ContactBook = HashMap<String, Rc<Contact>>;
+pub struct ContactBook(HashMap<String, Contact>);
+
+impl ContactBook {
+    fn fname(root: &PathBuf) -> PathBuf {
+        root.join("contacts").with_extension("json")
+    }
+
+    pub fn get_or_add(&mut self, slug: String) -> Contact {
+        if let Some(contact) = self.0.get(&slug) {
+            (*contact).clone()
+        } else {
+            println!("Enter the informations related to the recipient");
+            let recipient = Contact::ask(Some(slug.clone()));
+            self.0.insert(slug, recipient.clone());
+            recipient
+        }
+    }
+
+    pub fn import(root: &PathBuf) -> Result<ContactBook, Errcode> {
+        let json_str = std::fs::read_to_string(Self::fname(root))?;
+        let data = serde_json::from_str::<serde_json::Value>(&json_str)?;
+        let data = data.as_object().unwrap().to_owned();
+        let mut book = ContactBook(HashMap::new());
+        for (k, v) in data.into_iter() {
+            book.0.insert(k, serde_json::from_value::<Contact>(v)?);
+        }
+        Ok(book)
+    }
+
+    pub fn export(&self, root: &PathBuf) -> Result<(), Errcode> {
+        let mut map = serde_json::Map::new();
+        for (k, v) in self.0.iter() {
+            map.insert(k.clone(), serde_json::to_value(v)?);
+        }
+        let json_str = serde_json::to_string_pretty(&map)?;
+        std::fs::write(Self::fname(root), json_str)?;
+        Ok(())
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Contact {
@@ -13,17 +52,10 @@ pub struct Contact {
     pub name: String,
     pub address: String,
     invoices: Vec<usize>,
+    quotations: Vec<usize>,
 }
 
 impl Contact {
-    pub fn new(slug: String, name: String, address: String) -> Contact {
-        Contact {
-            slug,
-            name,
-            address,
-            invoices: vec![],
-        }
-    }
     pub fn ask(slug: Option<String>) -> Contact {
         let slug = slug.unwrap_or(Self::ask_slug());
         let name = ask_user_nonempty(format!("Name: "));
@@ -33,6 +65,7 @@ impl Contact {
             name,
             address,
             invoices: vec![],
+            quotations: vec![],
         }
     }
 
@@ -40,21 +73,5 @@ impl Contact {
         ask_user_nonempty("Enter the slug for the recipient: ")
             .to_ascii_lowercase()
             .replace(' ', "_")
-    }
-
-    pub fn partial_import(slug: String, map: &Map<String, Value>) -> Contact {
-        let name = map_get_str_or_ask(
-            map,
-            "name",
-            format!("Enter the name of the contact {slug:?}: "),
-            true,
-        );
-        let address = map_get_str_or_ask(
-            map,
-            "address",
-            format!("Enter the address of the contact {slug:?}: "),
-            true,
-        );
-        Contact::new(slug, name, address)
     }
 }
