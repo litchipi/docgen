@@ -147,16 +147,25 @@ impl InvoiceBuilder {
     fn generate_header(&self, source: &mut String) {
         *source += "#let sep_par() = 28pt\n";
         let logo_path = self.cfg.get_company("logo_path");
-        let logo = format!("#image(\"{logo_path}\", width: logo_width())");
+        let logo = if logo_path.is_empty() {
+            "".to_string()
+        } else {
+            format!("#image(\"{logo_path}\", width: logo_width())")
+        };
+
+        let writing_logo_path = self.cfg.get_company("logo_writing");
+        let writing_logo = if writing_logo_path.is_empty() {
+            format!("#text(company_name_font_size())[*{}*]", self.cfg.get_company("name"))
+        } else {
+            format!("#image(\"{writing_logo_path}\", width: logo_width())")
+        };
+
         *source += format!(
             "#grid(
             columns: (1fr, auto),
-            align(left, text(company_name_font_size())[{}]),
+            align(left)[{writing_logo}],
             align(right)[{logo}]
-        )\n",
-            sanitize(&self.cfg.get_company("name"))
-        )
-        .as_str();
+        )\n").as_str();
 
         *source += format!(
             "#align(left)[
