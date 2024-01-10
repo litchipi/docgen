@@ -22,7 +22,15 @@ impl ConfigDataStore {
     }
 
     pub fn get<'a>(&'a self, key: &str, data: &str) -> &'a toml::Value {
-        self.data.get(key).unwrap().get(data).unwrap()
+        let Some(table) = self.data.get(key) else {
+            panic!("Unable to get table {key} from config");
+        };
+        
+        let Some(res) = table.get(data) else {
+            panic!("Unable to get data {key}:{data} from config");
+        };
+
+        res
     }
 
     pub fn get_bool(&self, key: &str, data: &str) -> bool {

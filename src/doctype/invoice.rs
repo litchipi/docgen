@@ -134,6 +134,11 @@ impl InvoiceBuilder {
         let total_price = self.generate_transaction_table(&mut source);
         source += "#v(sep_par())\n";
         self.generate_summary_table(&mut source, total_price);
+        source += "#v(sep_par())\n";
+
+        if self.cfg.get_bool("invoice", "add_iban") {
+            self.generate_iban(&mut source);
+        }
 
         source += "\n";
         Ok((fname, source))
@@ -185,7 +190,7 @@ impl InvoiceBuilder {
                 {} \\ {} \\
             ],
             align(right)[
-                {} \\#*{}* \\
+                {} \\#*{:0>5}* \\
                 {} *{}* \\
                 {}: *{}*
             ],
@@ -256,8 +261,8 @@ impl InvoiceBuilder {
 
     fn generate_summary_table(&self, source: &mut String, total_price: f64) {
         let curr_sym = self.lang.get_doctype_word("general", "currency_symbol");
-        let (tax_fmt, tax_amnt) = if self.cfg.get_bool("company", "tax_applicable") {
-            let tax_rate: f64 = self.cfg.get_float("company", "tax_rate");
+        let (tax_fmt, tax_amnt) = if self.cfg.get_bool("invoice", "tax_applicable") {
+            let tax_rate: f64 = self.cfg.get_float("invoice", "tax_rate");
             let amnt = total_price * tax_rate;
             (
                 format!(
@@ -292,5 +297,24 @@ impl InvoiceBuilder {
             total_price + tax_amnt
         )
         .as_str();
+    }
+
+    fn generate_iban(&self, source: &mut String) {
+        *source += format!("
+            === {}
+
+            #table(
+                stroke: table_color(),
+                columns: (auto, auto),
+                [*{}*], [{}],
+                [*IBAN*], [{}],
+                [*BIC*], [{}],
+            )",
+            self.lang.get_doctype_word("invoice", "iban_title"),
+            self.lang.get_doctype_word("invoice", "iban_bank"),
+            self.cfg.get("bank", "name").as_str().unwrap(),
+            self.cfg.get("bank", "iban").as_str().unwrap(),
+            self.cfg.get("bank", "bic").as_str().unwrap(),
+        ).as_str();
     }
 }
