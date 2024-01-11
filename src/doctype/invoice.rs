@@ -206,6 +206,7 @@ pub fn generate(
     data.invoices.id_counter += 1;
 
     let slug = Contact::ask_slug();
+    let recipient = data.contacts.get_or_add(&slug);
     data.contacts.get_mut(&slug).invoices.push(id);
 
     let inp = if let Some(qhist) = data.quotations.history.get(&slug) {
@@ -219,7 +220,6 @@ pub fn generate(
         let quote = &qhist.get(filtered_idx).unwrap().1 .0;
         InvoiceInput::from_quote(id, cfg, lang, idx, quote)
     } else {
-        let recipient = data.contacts.get_or_add(&slug);
         InvoiceInput::ask(id, recipient.slug, cfg, lang)
     };
 
