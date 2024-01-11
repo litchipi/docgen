@@ -12,7 +12,7 @@ pub type Transaction = (String, f64, f64);
 pub struct Datastore {
     pub contacts: ContactBook,
     pub invoices: InvoiceSavedData,
-    pub quotes: QuotationSavedData,
+    pub quotations: QuotationSavedData,
 }
 
 impl Datastore {
@@ -27,13 +27,13 @@ impl Datastore {
         Datastore {
             contacts,
             invoices,
-            quotes,
+            quotations: quotes,
         }
     }
 
     pub fn export(&self, root: &Path) -> Result<(), Errcode> {
         DocumentType::Invoice.export_data(root, &self.invoices)?;
-        DocumentType::Quotation.export_data(root, &self.quotes)?;
+        DocumentType::Quotation.export_data(root, &self.quotations)?;
         self.contacts.export(root)?;
         Ok(())
     }

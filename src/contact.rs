@@ -33,6 +33,13 @@ impl ContactBook {
             .unwrap()
     }
 
+    pub fn get_mut<'a>(&'a mut self, slug: &String) -> &'a mut Contact {
+        self.0
+            .get_mut(slug)
+            .ok_or(Errcode::ContactNotFound(slug.clone()))
+            .unwrap()
+    }
+
     pub fn import(root: &Path) -> ContactBook {
         let fname = Self::fname(root);
         let mut book = ContactBook(HashMap::new());
@@ -69,8 +76,8 @@ pub struct Contact {
     pub slug: String,
     pub name: String,
     pub address: String,
-    invoices: Vec<usize>,
-    quotations: Vec<usize>,
+    pub invoices: Vec<usize>,
+    pub quotations: Vec<usize>,
 }
 
 impl Contact {

@@ -20,8 +20,10 @@ tax_rate = 0.2
 [invoice]
 add_iban = true
 footer = ""
+id_prefix = "F"
 
 [quotation]
 add_iban = true
 footer = ""
 payment_conditions = "Paiement en totalité après rendu du livrable"
+id_prefix = "D"

@@ -8,24 +8,25 @@ use crate::codegen::{
     write_page_settings,
 };
 use crate::config::ConfigStore;
-use crate::contact::{Contact, ContactBook};
+use crate::contact::Contact;
 use crate::data::{Datastore, Date};
 use crate::errors::Errcode;
 use crate::interface::ask::{ask_for_transactions, ask_user_nonempty};
 use crate::interface::select_from_list;
 use crate::lang::LangDict;
 
-use super::quotation::{QuotationInput, QuotationSavedData};
+use crate::doctype::quotation::QuotationInput;
 use crate::doctype::TypstData;
 
 #[derive(Serialize, Deserialize)]
 pub struct InvoiceSavedData {
     pub history: Vec<InvoiceInput>,
+    pub id_counter: usize,
 }
 
 impl InvoiceSavedData {
     pub fn init() -> InvoiceSavedData {
-        InvoiceSavedData { history: vec![] }
+        InvoiceSavedData { id_counter: 1, history: vec![] }
     }
 
     pub fn import(fname: &Path) -> InvoiceSavedData {
@@ -47,6 +48,7 @@ impl InvoiceSavedData {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InvoiceInput {
+    pub id: usize,
     pub recipient: String,
     pub quote_nb: Option<usize>,
     date_sell: Date,
@@ -56,7 +58,7 @@ pub struct InvoiceInput {
 }
 
 impl InvoiceInput {
-    pub fn from_quote(config: &ConfigStore, lang: &LangDict, idx: usize, quote: &QuotationInput) -> InvoiceInput {
+    pub fn from_quote(id: usize, config: &ConfigStore, lang: &LangDict, idx: usize, quote: &QuotationInput) -> InvoiceInput {
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
         let tax_rate = if config.get_bool("taxes", "tax_applicable") {
@@ -65,6 +67,7 @@ impl InvoiceInput {
             None
         };
         InvoiceInput {
+            id,
             recipient: quote.recipient.clone(),
             tx: quote.tx.clone(),
             date_sell: ask_user_nonempty("Enter the date where the sell was done: "),
@@ -74,7 +77,7 @@ impl InvoiceInput {
 
         }
     }
-    pub fn ask(config: &ConfigStore, recipient: String, lang: &LangDict) -> InvoiceInput {
+    pub fn ask(id: usize, recipient: String, config: &ConfigStore, lang: &LangDict) -> InvoiceInput {
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
@@ -87,6 +90,7 @@ impl InvoiceInput {
         };
 
         InvoiceInput {
+            id,
             recipient,
             quote_nb: None,
             date_sell,
@@ -141,7 +145,11 @@ impl<'a> InvoiceBuilder<'a> {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
 
         let quotation_md = if let Some(nb) = self.inp.quote_nb {
-            format!("\\\n\t{} \\#*{:0>5}*", self.lang.get_doctype_word("invoice", "quotation_related"), nb)
+            format!("\\\n\t{} \\#*{}{:0>5}*",
+                self.lang.get_doctype_word("invoice", "quotation_related"),
+                self.cfg.get_str("quotation", "id_prefix"),
+                nb
+            )
         } else {
             "".to_string()
         };
@@ -155,7 +163,7 @@ impl<'a> InvoiceBuilder<'a> {
                 {} \\ {} \\
             ],
             align(right)[
-                {} \\#*{:0>5}* \\
+                {} \\#*{}{:0>5}* \\
                 {} *{}* \\
                 {}: *{}* {quotation_md}
             ],
@@ -164,6 +172,7 @@ impl<'a> InvoiceBuilder<'a> {
             self.data.contacts.get(&self.inp.recipient).name,
             self.data.contacts.get(&self.inp.recipient).address,
             self.lang.get_doctype_word("invoice", "invoice_nb"),
+            self.cfg.get_str("invoice", "id_prefix"),
             self.data.invoices.history.len(),
             self.lang.get_doctype_word("general", "creation_date"),
             current_date_fmt,
@@ -174,14 +183,18 @@ impl<'a> InvoiceBuilder<'a> {
     }
 }
 
-fn get_inputs(
-    config: &ConfigStore,
-    quotedata: &QuotationSavedData,
+pub fn generate(
+    cfg: &ConfigStore,
     lang: &LangDict,
-    contacts: &mut ContactBook,
-) -> InvoiceInput {
+    data: &mut Datastore,
+) -> Result<TypstData, Errcode> {
+    let id = data.invoices.id_counter;
+    data.invoices.id_counter += 1;
+
     let slug = Contact::ask_slug();
-    if let Some(qhist) = quotedata.history.get(&slug) {
+    data.contacts.get_mut(&slug).invoices.push(id);
+
+    let inp = if let Some(qhist) = data.quotations.history.get(&slug) {
         let qhist = qhist
             .iter()
             .enumerate()
@@ -190,19 +203,12 @@ fn get_inputs(
         let filtered_idx = select_from_list(&qhist, |(_, (inp, _))| inp.single_line_display());
         let idx = qhist.get(filtered_idx).unwrap().0;
         let quote = &qhist.get(filtered_idx).unwrap().1 .0;
-        InvoiceInput::from_quote(config, lang, idx, quote)
+        InvoiceInput::from_quote(id, cfg, lang, idx, quote)
     } else {
-        let recipient = contacts.get_or_add(&slug);
-        InvoiceInput::ask(config, recipient.slug, lang)
-    }
-}
+        let recipient = data.contacts.get_or_add(&slug);
+        InvoiceInput::ask(id, recipient.slug, cfg, lang)
+    };
 
-pub fn generate(
-    cfg: &ConfigStore,
-    lang: &LangDict,
-    data: &mut Datastore,
-) -> Result<TypstData, Errcode> {
-    let inp = get_inputs(cfg, &data.quotes, lang, &mut data.contacts);
     let mut builder = InvoiceBuilder {
         cfg,
         lang,
@@ -215,7 +221,7 @@ pub fn generate(
 
     if let Some(quote_nb) = inp.quote_nb {
         let invoice_nb = data.invoices.history.len();
-        data.quotes
+        data.quotations
             .mark_quotation_finished(&inp.recipient, quote_nb, invoice_nb)?;
     }
     Ok(TypstData::new(fname, result))

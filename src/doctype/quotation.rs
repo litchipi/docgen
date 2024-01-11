@@ -19,12 +19,14 @@ use super::TypstData;
 
 #[derive(Serialize, Deserialize)]
 pub struct QuotationSavedData {
+    pub id_counter: usize,
     pub history: HashMap<String, Vec<(QuotationInput, Option<usize>)>>,
 }
 
 impl QuotationSavedData {
     pub fn init() -> QuotationSavedData {
         QuotationSavedData {
+            id_counter: 1,
             history: HashMap::new(),
         }
     }
@@ -77,6 +79,7 @@ impl QuotationSavedData {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct QuotationInput {
+    pub id: usize,
     pub recipient: String,
     pub created: Date,
     pub tx: Vec<Transaction>,
@@ -102,12 +105,13 @@ impl QuotationInput {
         }
     }
 
-    pub fn ask(_config: &ConfigStore, recipient: String, lang: &LangDict) -> QuotationInput {
+    pub fn ask(id: usize, recipient: String, _: &ConfigStore, lang: &LangDict) -> QuotationInput {
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
 
         let tx = ask_for_transactions(lang);
         QuotationInput {
+            id,
             recipient,
             created,
             tx,
@@ -125,13 +129,13 @@ pub struct QuotationBuilder<'a> {
 impl<'a> QuotationBuilder<'a> {
     pub fn generate_quotation(&mut self) -> Result<(String, String), Errcode> {
         // Getting necessary data before writing the code
-        self.data.quotes.add_quote(self.inp);
+        self.data.quotations.add_quote(self.inp);
         let current_date = Utc::now();
 
         let fname = format!(
             "quotation_{}_{}_{}.pdf",
             self.inp.recipient,
-            self.data.quotes.history.len(),
+            self.data.quotations.history.len(),
             current_date.format("%d%m%y"),
         );
 
@@ -173,7 +177,7 @@ impl<'a> QuotationBuilder<'a> {
                 {} \\ {} \\
             ],
             align(right)[
-                {} \\#*{:0>5}* \\
+                {} \\#*{}{:0>5}* \\
                 {} *{}* \\
             ],
         )",
@@ -181,7 +185,8 @@ impl<'a> QuotationBuilder<'a> {
             self.data.contacts.get(&self.inp.recipient).name,
             self.data.contacts.get(&self.inp.recipient).address,
             self.lang.get_doctype_word("quotation", "quotation_nb"),
-            self.data.quotes.history.len(),
+            self.cfg.get_str("quotation", "id_prefix"),
+            self.data.quotations.history.len(),
             self.lang.get_doctype_word("general", "creation_date"),
             self.inp.created,
         )
@@ -196,7 +201,10 @@ pub fn generate(
 ) -> Result<TypstData, Errcode> {
     let recipient_slug = Contact::ask_slug();
     data.contacts.get_or_add(&recipient_slug);
-    let inp = QuotationInput::ask(cfg, recipient_slug, lang);
+    let id = data.quotations.id_counter;
+    data.quotations.id_counter += 1;
+    data.contacts.get_mut(&recipient_slug).quotations.push(id);
+    let inp = QuotationInput::ask(id, recipient_slug, cfg, lang);
     let mut builder = QuotationBuilder {
         cfg,
         lang,

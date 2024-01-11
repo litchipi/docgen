@@ -22,7 +22,7 @@ tax_not_applicable = "Tax non applicable"
 total_price_no_tax = "Total HT"
 total_price_with_tax = "Total TTC"
 
-creation_date = "Créée le"
+creation_date = "Créé le"
 sell_date = "Vente réalisée le"
 
 tx_item_description = "Description"
@@ -35,6 +35,7 @@ iban_title = "Coordonnées bancaires"
 [invoice]
 recipient_intro = "Facturé à"
 invoice_nb = "Facture numéro"
+quotation_related = "Relatif au devis"
 
 [quotation]
 recipient_intro = "Devis addressé à"
