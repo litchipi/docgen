@@ -50,13 +50,15 @@ pub struct InvoiceInput {
     pub recipient: String,
     pub quote_nb: Option<usize>,
     date_sell: Date,
-    // TODO    Add created date (fmt from current date)
     tx: Vec<(String, f64, f64)>,
     tax_rate: Option<f64>,
+    created: String,
 }
 
 impl InvoiceInput {
-    pub fn from_quote(config: &ConfigStore, idx: usize, quote: &QuotationInput) -> InvoiceInput {
+    pub fn from_quote(config: &ConfigStore, lang: &LangDict, idx: usize, quote: &QuotationInput) -> InvoiceInput {
+        let current_date = Utc::now();
+        let created = lang.get_date_fmt(&current_date);
         let tax_rate = if config.get_bool("taxes", "tax_applicable") {
             Some(config.get_float("taxes", "tax_rate"))
         } else {
@@ -68,9 +70,13 @@ impl InvoiceInput {
             date_sell: ask_user_nonempty("Enter the date where the sell was done: "),
             quote_nb: Some(idx),
             tax_rate,
+            created,
+
         }
     }
     pub fn ask(config: &ConfigStore, recipient: String, lang: &LangDict) -> InvoiceInput {
+        let current_date = Utc::now();
+        let created = lang.get_date_fmt(&current_date);
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
         let tx = ask_for_transactions(lang);
@@ -86,6 +92,7 @@ impl InvoiceInput {
             date_sell,
             tx,
             tax_rate,
+            created,
         }
     }
 }
@@ -133,9 +140,11 @@ impl<'a> InvoiceBuilder<'a> {
     fn generate_metadata(&self, source: &mut String, current_date: &DateTime<Utc>) {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
 
-        if let Some(_nb) = self.inp.quote_nb {
-            // TODO    Add quotation number to metadata
-        }
+        let quotation_md = if let Some(nb) = self.inp.quote_nb {
+            format!("\\\n\t{} \\#*{:0>5}*", self.lang.get_doctype_word("invoice", "quotation_related"), nb)
+        } else {
+            "".to_string()
+        };
 
         *source += format!(
             "#grid(
@@ -148,7 +157,7 @@ impl<'a> InvoiceBuilder<'a> {
             align(right)[
                 {} \\#*{:0>5}* \\
                 {} *{}* \\
-                {}: *{}*
+                {}: *{}* {quotation_md}
             ],
         )",
             self.lang.get_doctype_word("invoice", "recipient_intro"),
@@ -181,7 +190,7 @@ fn get_inputs(
         let filtered_idx = select_from_list(&qhist, |(_, (inp, _))| inp.single_line_display());
         let idx = qhist.get(filtered_idx).unwrap().0;
         let quote = &qhist.get(filtered_idx).unwrap().1 .0;
-        InvoiceInput::from_quote(config, idx, quote)
+        InvoiceInput::from_quote(config, lang, idx, quote)
     } else {
         let recipient = contacts.get_or_add(&slug);
         InvoiceInput::ask(config, recipient.slug, lang)

@@ -103,7 +103,6 @@ impl QuotationInput {
     }
 
     pub fn ask(_config: &ConfigStore, recipient: String, lang: &LangDict) -> QuotationInput {
-        // TODO    Do the same in invoices
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
 
