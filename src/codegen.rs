@@ -1,4 +1,4 @@
-use crate::{config::ConfigStore, lang::LangDict, data::Transaction};
+use crate::{config::ConfigStore, data::Transaction, lang::LangDict};
 
 pub fn sanitize(data: &str) -> String {
     data.replace('@', "\\@").replace('#', "\\#")
@@ -90,8 +90,12 @@ pub fn generate_transaction_table(source: &mut String, tx: &[Transaction], lang:
     total_price
 }
 
-
-pub fn generate_summary_table(source: &mut String, total_price: f64, lang: &LangDict, cfg: &ConfigStore) {
+pub fn generate_summary_table(
+    source: &mut String,
+    total_price: f64,
+    lang: &LangDict,
+    cfg: &ConfigStore,
+) {
     let curr_sym = lang.get_doctype_word("general", "currency_symbol");
     let (tax_fmt, tax_amnt) = if cfg.get_bool("taxes", "tax_applicable") {
         let tax_rate: f64 = cfg.get_float("taxes", "tax_rate");
@@ -124,13 +128,11 @@ pub fn generate_summary_table(source: &mut String, total_price: f64, lang: &Lang
         [*{}*], [{:.2} {curr_sym}],
     )",
         lang.get_doctype_word("general", "total_price_no_tax"),
-        lang
-            .get_doctype_word("general", "total_price_with_tax"),
+        lang.get_doctype_word("general", "total_price_with_tax"),
         total_price + tax_amnt
     )
     .as_str();
 }
-
 
 pub fn generate_iban(source: &mut String, lang: &LangDict, cfg: &ConfigStore) {
     *source += format!(

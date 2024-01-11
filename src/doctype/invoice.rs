@@ -121,8 +121,7 @@ impl<'a> InvoiceBuilder<'a> {
         source += "#v(sep_par())\n";
         self.generate_metadata(&mut source, &current_date);
         source += "#v(sep_par())\n";
-        let total_price =
-            generate_transaction_table(&mut source, &self.inp.tx, self.lang);
+        let total_price = generate_transaction_table(&mut source, &self.inp.tx, self.lang);
         source += "#v(sep_par())\n";
         generate_summary_table(&mut source, total_price, self.lang, self.cfg);
         source += "#v(sep_par())\n";
