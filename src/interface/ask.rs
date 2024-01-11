@@ -3,6 +3,7 @@ use std::io::Write;
 use std::str::FromStr;
 
 use crate::data::Transaction;
+use crate::lang::LangDict;
 
 // TODO    Use ratatui instead to perform these operations
 
@@ -46,7 +47,11 @@ pub fn ask_user_nonempty<T: Display>(question: T) -> String {
     res.trim().to_string()
 }
 
-pub fn ask_for_transactions(desc: String, units: String, ppu: String) -> Vec<Transaction> {
+pub fn ask_for_transactions(lang: &LangDict) -> Vec<Transaction> {
+    let desc = lang.get_doctype_word("general", "tx_item_description");
+    let units = lang.get_doctype_word("general", "tx_units");
+    let ppu = lang.get_doctype_word("general", "tx_price_per_unit");
+
     let mut tx = vec![];
     loop {
         println!("\nEnter data about transaction {}: ", tx.len() + 1);

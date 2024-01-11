@@ -19,18 +19,18 @@ impl LangDict {
         )
     }
 
-    pub fn get_doctype_word<D: ToString, W: ToString>(&self, doctype: D, word: W) -> String {
-        let doctype = doctype.to_string();
+    pub fn get_doctype_word<D: ToString, W: ToString>(&self, subtable: D, word: W) -> String {
+        let subtable = subtable.to_string();
         let word = word.to_string();
         self.data
-            .get(&doctype)
-            .unwrap()
+            .get(&subtable)
+            .expect(format!("Unable to get lang table {subtable}").as_str())
             .as_table()
-            .unwrap()
+            .expect(format!("Unable to convert lang table {subtable} to table").as_str())
             .get(&word)
-            .unwrap()
+            .expect(format!("Unable to get word {subtable}:{word}").as_str())
             .as_str()
-            .unwrap()
+            .expect(format!("Unable to convert word {subtable}:{word} to String").as_str())
             .to_string()
     }
 }

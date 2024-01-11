@@ -57,8 +57,8 @@ pub struct InvoiceInput {
 
 impl InvoiceInput {
     pub fn from_quote(config: &ConfigStore, idx: usize, quote: &QuotationInput) -> InvoiceInput {
-        let tax_rate = if config.get_bool("general", "tax_applicable") {
-            Some(config.get_float("general", "tax_rate"))
+        let tax_rate = if config.get_bool("taxes", "tax_applicable") {
+            Some(config.get_float("taxes", "tax_rate"))
         } else {
             None
         };
@@ -73,11 +73,7 @@ impl InvoiceInput {
     pub fn ask(config: &ConfigStore, recipient: String, lang: &LangDict) -> InvoiceInput {
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
-        let word_desc = lang.get_doctype_word("general", "tx_item_description");
-        let word_units = lang.get_doctype_word("general", "tx_units");
-        let word_ppu = lang.get_doctype_word("general", "tx_price_per_unit");
-
-        let tx = ask_for_transactions(word_desc, word_units, word_ppu);
+        let tx = ask_for_transactions(lang);
         let tax_rate = if config.get_bool("taxes", "tax_applicable") {
             Some(config.get_float("taxes", "tax_rate"))
         } else {
@@ -136,6 +132,10 @@ impl<'a> InvoiceBuilder<'a> {
 
     fn generate_metadata(&self, source: &mut String, current_date: &DateTime<Utc>) {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
+
+        if let Some(nb) = self.inp.quote_nb {
+            // TODO    Add quotation number to metadata
+        }
 
         *source += format!(
             "#grid(

@@ -23,15 +23,6 @@ fn to_typst(val: &Value) -> String {
     }
 }
 
-fn get_default_invoice_style() -> Style {
-    let mut style = Map::new();
-    style.insert("company_name_font_size".into(), "23pt".into());
-    style.insert("table_color".into(), "rgb(110, 140, 180, 205)".into());
-    style.insert("tx_descr_width".into(), "3fr".into());
-    style.insert("logo_width".into(), "150pt".into());
-    style
-}
-
 fn get_default_style() -> Style {
     let mut style = Map::new();
     style.insert("paper_type".into(), "a4".into());
@@ -41,8 +32,10 @@ fn get_default_style() -> Style {
     style.insert("margin_x".into(), "4%".into());
     style.insert("margin_bottom".into(), "2%".into());
     style.insert("footer_font_size".into(), "10pt".into());
-
-    style.insert("invoice".into(), Value::Table(get_default_invoice_style()));
+    style.insert("company_name_font_size".into(), "23pt".into());
+    style.insert("table_color".into(), "rgb(110, 140, 180, 205)".into());
+    style.insert("tx_descr_width".into(), "3fr".into());
+    style.insert("logo_width".into(), "150pt".into());
     style
 }
 

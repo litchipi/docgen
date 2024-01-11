@@ -107,11 +107,7 @@ impl QuotationInput {
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
 
-        let word_desc = lang.get_doctype_word("invoice", "tx_item_description");
-        let word_units = lang.get_doctype_word("invoice", "tx_units");
-        let word_ppu = lang.get_doctype_word("invoice", "tx_price_per_unit");
-
-        let tx = ask_for_transactions(word_desc, word_units, word_ppu);
+        let tx = ask_for_transactions(lang);
         QuotationInput {
             recipient,
             created,
@@ -151,7 +147,9 @@ impl<'a> QuotationBuilder<'a> {
         source += "#v(sep_par())\n";
         generate_summary_table(&mut source, total_price, self.lang, self.cfg);
         source += "#v(sep_par())\n";
+        source += format!("=== {}\n", self.lang.get_doctype_word("quotation", "payment_conditions")).as_str();
         source += self.cfg.get_str("quotation", "payment_conditions");
+        source += "\n";
 
         if self.cfg.get_bool("quotation", "add_iban") {
             generate_iban(&mut source, self.lang, self.cfg);

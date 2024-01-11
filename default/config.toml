@@ -24,3 +24,4 @@ footer = ""
 [quotation]
 add_iban = true
 footer = ""
+payment_conditions = "Paiement en totalité après rendu du livrable"

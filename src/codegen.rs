@@ -57,6 +57,7 @@ pub fn generate_header(cfg: &ConfigStore, source: &mut String) {
         sanitize(&cfg.get_company("siret_number")),
     )
     .as_str();
+    *source += "\n";
 }
 
 pub fn generate_transaction_table(source: &mut String, tx: &[Transaction], lang: &LangDict) -> f64 {
@@ -132,6 +133,7 @@ pub fn generate_summary_table(
         total_price + tax_amnt
     )
     .as_str();
+    *source += "\n";
 }
 
 pub fn generate_iban(source: &mut String, lang: &LangDict, cfg: &ConfigStore) {
@@ -146,11 +148,12 @@ pub fn generate_iban(source: &mut String, lang: &LangDict, cfg: &ConfigStore) {
             [*IBAN*], [{}],
             [*BIC*], [{}],
         )",
-        lang.get_doctype_word("invoice", "iban_title"),
-        lang.get_doctype_word("invoice", "iban_bank"),
+        lang.get_doctype_word("general", "iban_title"),
+        lang.get_doctype_word("general", "iban_bank"),
         cfg.get_str("bank", "name"),
         cfg.get_str("bank", "iban"),
         cfg.get_str("bank", "bic"),
     )
     .as_str();
+    *source += "\n";
 }

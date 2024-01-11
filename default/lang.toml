@@ -23,7 +23,7 @@ total_price_no_tax = "Total HT"
 total_price_with_tax = "Total TTC"
 
 creation_date = "Créée le"
-sell_date = "Échéance"
+sell_date = "Vente réalisée le"
 
 tx_item_description = "Description"
 tx_units = "Unités"
@@ -39,3 +39,4 @@ invoice_nb = "Facture numéro"
 [quotation]
 recipient_intro = "Devis addressé à"
 quotation_nb = "Devis numéro"
+payment_conditions = "Conditions de paiement"
