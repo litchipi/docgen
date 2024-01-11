@@ -4,7 +4,7 @@ use crossterm::terminal::{enable_raw_mode, EnterAlternateScreen, LeaveAlternateS
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
-pub mod utils;
+pub mod ask;
 mod select_list;
 
 pub use select_list::select_from_list;

@@ -6,7 +6,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::errors::Errcode;
-use crate::interface::utils::ask_user_nonempty;
+use crate::interface::ask::ask_user_nonempty;
 
 pub struct ContactBook(HashMap<String, Contact>);
 
@@ -15,13 +15,13 @@ impl ContactBook {
         root.join("contacts").with_extension("json")
     }
 
-    pub fn get_or_add(&mut self, slug: String) -> Contact {
-        if let Some(contact) = self.0.get(&slug) {
+    pub fn get_or_add(&mut self, slug: &String) -> Contact {
+        if let Some(contact) = self.0.get(slug) {
             (*contact).clone()
         } else {
             println!("Enter the informations related to the recipient");
             let recipient = Contact::ask(Some(slug.clone()));
-            self.0.insert(slug, recipient.clone());
+            self.0.insert(slug.clone(), recipient.clone());
             recipient
         }
     }

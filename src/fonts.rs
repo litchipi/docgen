@@ -1,5 +1,5 @@
 use crate::errors::Errcode;
-use crate::interface::utils::ask_user;
+use crate::interface::ask::ask_user;
 use crate::style::Style;
 use std::io::Read;
 use std::path::PathBuf;

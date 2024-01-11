@@ -41,7 +41,7 @@ impl DocumentType {
 
         let res = match self {
             DocumentType::Invoice => invoice::generate(cfg, lang, &mut data),
-            DocumentType::Quotation => todo!(), //quotation::generate(cfg, lang, dataf),
+            DocumentType::Quotation => quotation::generate(cfg, lang, &mut data),
         }?;
         data.export(datadir)?;
         Ok(res)

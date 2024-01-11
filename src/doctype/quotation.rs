@@ -1,11 +1,19 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use chrono::{Utc, DateTime};
 use serde::{Deserialize, Serialize};
 
+use crate::codegen::{write_page_settings, generate_header, generate_transaction_table, generate_summary_table, generate_iban};
+use crate::config::ConfigStore;
 use crate::contact::Contact;
+use crate::data::{Transaction, Date, Datastore};
 use crate::errors::Errcode;
-use crate::Transaction;
+use crate::interface::ask::{ask_user_nonempty, ask_for_transactions};
+use crate::lang::LangDict;
+
+use super::TypstData;
+use super::invoice::InvoiceInput;
 
 #[derive(Serialize, Deserialize)]
 pub struct QuotationSavedData {
@@ -13,9 +21,25 @@ pub struct QuotationSavedData {
 }
 
 impl QuotationSavedData {
-    pub fn import(_root: &Path) -> QuotationSavedData {
+    pub fn init() -> QuotationSavedData {
         QuotationSavedData {
             history: HashMap::new(),
+        }
+    }
+
+    pub fn import(fname: &Path) -> QuotationSavedData {
+        if !fname.is_file() {
+            return QuotationSavedData::init();
+        }
+
+        let json_str =
+            std::fs::read_to_string(fname).expect("Unable to read JSON data from {fname}");
+        match serde_json::from_str::<Self>(json_str.as_str()) {
+            Ok(d) => d,
+            Err(_) => {
+                println!("Failed to import the quotation data");
+                QuotationSavedData::init()
+            }
         }
     }
 
@@ -35,12 +59,20 @@ impl QuotationSavedData {
         data.1 = Some(invoice_nb);
         Ok(())
     }
+
+    pub fn add_quote(&mut self, quote: &QuotationInput) {
+        if self.history.get(&quote.recipient).is_none() {
+            self.history.insert(quote.recipient.clone(), vec![(quote.clone(), None)]);
+        } else {
+            self.history.get_mut(&quote.recipient).unwrap().push((quote.clone(), None));
+        }
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct QuotationInput {
-    pub created: String,
-    pub recipient: Contact,
+    pub recipient: String,
+    pub created: Date,
     pub tx: Vec<Transaction>,
 }
 
@@ -55,7 +87,7 @@ impl QuotationInput {
             .join(", ");
         let line = format!(
             "{} {} {total_price:.2}€ : {descr}",
-            self.recipient.slug, self.created,
+            self.recipient, self.created,
         );
         if line.len() > 80 {
             line[..80].to_string() + "..."
@@ -63,4 +95,105 @@ impl QuotationInput {
             line
         }
     }
+
+    pub fn ask(config: &ConfigStore, recipient: String, lang: &LangDict) -> QuotationInput {
+        // TODO    Do the same in invoices
+        let current_date = Utc::now();
+        let created = lang.get_date_fmt(&current_date);
+
+        let word_desc = lang.get_doctype_word("invoice", "tx_item_description");
+        let word_units = lang.get_doctype_word("invoice", "tx_units");
+        let word_ppu = lang.get_doctype_word("invoice", "tx_price_per_unit");
+
+        let tx = ask_for_transactions(word_desc, word_units, word_ppu);
+        QuotationInput { recipient, created, tx, }
+    }
+}
+
+
+pub struct QuotationBuilder<'a> {
+    cfg: &'a ConfigStore,
+    lang: &'a LangDict,
+    data: &'a mut Datastore,
+    inp: &'a QuotationInput,
+}
+
+impl<'a> QuotationBuilder<'a> {
+    pub fn generate_quotation(&mut self) -> Result<(String, String), Errcode> {
+        // Getting necessary data before writing the code
+        self.data.quotes.add_quote(self.inp);
+        let current_date = Utc::now();
+
+        let fname = format!(
+            "quotation_{}_{}_{}.pdf",
+            self.inp.recipient,
+            self.data.quotes.history.len(),
+            current_date.format("%d%m%y"),
+        );
+
+        let footer = self.cfg.get_str("quotation", "footer");
+        let mut source = "".to_string();
+        write_page_settings(&mut source, footer);
+        generate_header(self.cfg, &mut source);
+        source += "#v(sep_par())\n";
+        self.generate_metadata(&mut source);
+        source += "#v(sep_par())\n";
+        let total_price = generate_transaction_table(&mut source, &self.inp.tx, self.lang, "quotation");
+        source += "#v(sep_par())\n";
+        generate_summary_table(&mut source, total_price, self.lang, self.cfg, "quotation");
+        source += "#v(sep_par())\n";
+        source += self.cfg.get_str("quotation", "payment_conditions");
+
+        if self.cfg.get_bool("quotation", "add_iban") {
+            generate_iban(&mut source, self.lang, self.cfg);
+        }
+
+        source += "\n";
+        Ok((fname, source))
+    }
+
+    fn generate_metadata(&self, source: &mut String) {
+        *source += format!(
+            "#grid(
+            columns: (1fr, 1fr),
+            column-gutter: 10%,
+            align(left)[
+                #text(17pt)[{}] \\
+                {} \\ {} \\
+            ],
+            align(right)[
+                {} \\#*{:0>5}* \\
+                {} *{}* \\
+            ],
+        )",
+            self.lang.get_doctype_word("quotation", "recipient_intro"),
+            self.data.contacts.get(&self.inp.recipient).name,
+            self.data.contacts.get(&self.inp.recipient).address,
+            self.lang.get_doctype_word("quotation", "quotation_nb"),
+            self.data.quotes.history.len(),
+            self.lang.get_doctype_word("quotation", "creation_date"),
+            self.inp.created,
+        )
+        .as_str();
+    }
+}
+
+pub fn generate(
+    cfg: &ConfigStore,
+    lang: &LangDict,
+    data: &mut Datastore,
+) -> Result<TypstData, Errcode> {
+    let recipient_slug = Contact::ask_slug();
+    data.contacts.get_or_add(&recipient_slug);
+    let inp = QuotationInput::ask(cfg, recipient_slug, lang);
+    let mut builder = QuotationBuilder {
+        cfg,
+        lang,
+        data,
+        inp: &inp,
+    };
+    let (fname, result) = builder.generate_quotation()?;
+    // For debug
+    std::fs::write("/tmp/.typst_result.typ", &result)?;
+    Ok(TypstData::new(fname, result))
 }

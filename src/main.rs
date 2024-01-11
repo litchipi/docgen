@@ -22,8 +22,6 @@ use world::TypstWorld;
 use crate::config::import_config;
 use crate::lang::import_lang_profile;
 
-pub type Transaction = (String, f64, f64);
-
 #[derive(Parser, Debug)]
 struct Args {
     #[arg()]

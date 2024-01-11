@@ -6,6 +6,9 @@ use crate::doctype::quotation::QuotationSavedData;
 use crate::doctype::DocumentType;
 use crate::errors::Errcode;
 
+pub type Date = String;
+pub type Transaction = (String, f64, f64);
+
 pub struct Datastore {
     pub contacts: ContactBook,
     pub invoices: InvoiceSavedData,

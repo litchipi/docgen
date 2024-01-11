@@ -20,7 +20,7 @@ impl ConfigStore {
             .to_string()
     }
 
-    pub fn get<'a>(&'a self, key: &str, data: &str) -> &'a toml::Value {
+    fn get_toml_value<'a>(&'a self, key: &str, data: &str) -> &'a toml::Value {
         let Some(table) = self.data.get(key) else {
             panic!("Unable to get table {key} from config");
         };
@@ -33,15 +33,21 @@ impl ConfigStore {
     }
 
     pub fn get_bool(&self, key: &str, data: &str) -> bool {
-        self.get(key, data)
+        self.get_toml_value(key, data)
             .as_bool()
             .expect("Unable to convert {key}:{data} to boolean")
     }
 
     pub fn get_float(&self, key: &str, data: &str) -> f64 {
-        self.get(key, data)
+        self.get_toml_value(key, data)
             .as_float()
             .expect("Unable to convert {key}:{data} to float")
+    }
+
+    pub fn get_str<'a>(&'a self, key: &str, data: &str) -> &'a str {
+        self.get_toml_value(key, data)
+            .as_str()
+            .expect("Unable to convert {key}:{data} to str")
     }
 }
 
