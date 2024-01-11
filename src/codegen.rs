@@ -1,4 +1,4 @@
-use crate::{config::ConfigStore, lang::LangDict, data::Transaction};
+use crate::{config::ConfigStore, data::Transaction, lang::LangDict};
 
 pub fn sanitize(data: &str) -> String {
     data.replace('@', "\\@").replace('#', "\\#")
@@ -59,7 +59,12 @@ pub fn generate_header(cfg: &ConfigStore, source: &mut String) {
     .as_str();
 }
 
-pub fn generate_transaction_table(source: &mut String, tx: &Vec<Transaction>, lang: &LangDict, key: &str) -> f64 {
+pub fn generate_transaction_table(
+    source: &mut String,
+    tx: &[Transaction],
+    lang: &LangDict,
+    key: &str,
+) -> f64 {
     let word_desc = lang.get_doctype_word(key, "tx_item_description");
     let word_units = lang.get_doctype_word(key, "tx_units");
     let word_ppu = lang.get_doctype_word(key, "tx_price_per_unit");
@@ -90,8 +95,13 @@ pub fn generate_transaction_table(source: &mut String, tx: &Vec<Transaction>, la
     total_price
 }
 
-
-pub fn generate_summary_table(source: &mut String, total_price: f64, lang: &LangDict, cfg: &ConfigStore, key: &str) {
+pub fn generate_summary_table(
+    source: &mut String,
+    total_price: f64,
+    lang: &LangDict,
+    cfg: &ConfigStore,
+    key: &str,
+) {
     let curr_sym = lang.get_doctype_word("general", "currency_symbol");
     let (tax_fmt, tax_amnt) = if cfg.get_bool(key, "tax_applicable") {
         let tax_rate: f64 = cfg.get_float(key, "tax_rate");
@@ -124,13 +134,11 @@ pub fn generate_summary_table(source: &mut String, total_price: f64, lang: &Lang
         [*{}*], [{:.2} {curr_sym}],
     )",
         lang.get_doctype_word(key, "total_price_no_tax"),
-        lang
-            .get_doctype_word(key, "total_price_with_tax"),
+        lang.get_doctype_word(key, "total_price_with_tax"),
         total_price + tax_amnt
     )
     .as_str();
 }
-
 
 pub fn generate_iban(source: &mut String, lang: &LangDict, cfg: &ConfigStore) {
     *source += format!(

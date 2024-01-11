@@ -1,8 +1,10 @@
-use crossterm::ExecutableCommand;
 use crossterm::event::Event;
-use crossterm::terminal::{enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode};
-use ratatui::Terminal;
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
+use crossterm::ExecutableCommand;
 use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
 
 pub mod ask;
 mod select_list;

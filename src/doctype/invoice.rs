@@ -3,13 +3,16 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::codegen::{sanitize, write_page_settings, generate_header, generate_transaction_table, generate_summary_table, generate_iban};
+use crate::codegen::{
+    generate_header, generate_iban, generate_summary_table, generate_transaction_table,
+    write_page_settings,
+};
 use crate::config::ConfigStore;
 use crate::contact::{Contact, ContactBook};
 use crate::data::{Datastore, Date};
 use crate::errors::Errcode;
+use crate::interface::ask::{ask_for_transactions, ask_user_nonempty};
 use crate::interface::select_from_list;
-use crate::interface::ask::{ask_user, ask_user_nonempty, ask_user_parse, ask_for_transactions};
 use crate::lang::LangDict;
 
 use super::quotation::{QuotationInput, QuotationSavedData};
@@ -118,7 +121,8 @@ impl<'a> InvoiceBuilder<'a> {
         source += "#v(sep_par())\n";
         self.generate_metadata(&mut source, &current_date);
         source += "#v(sep_par())\n";
-        let total_price = generate_transaction_table(&mut source, &self.inp.tx, self.lang, "invoice");
+        let total_price =
+            generate_transaction_table(&mut source, &self.inp.tx, self.lang, "invoice");
         source += "#v(sep_par())\n";
         generate_summary_table(&mut source, total_price, self.lang, self.cfg, "invoice");
         source += "#v(sep_par())\n";
@@ -160,7 +164,6 @@ impl<'a> InvoiceBuilder<'a> {
         )
         .as_str();
     }
-
 }
 
 fn get_inputs(

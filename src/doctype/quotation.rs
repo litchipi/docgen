@@ -1,19 +1,21 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use chrono::{Utc, DateTime};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use crate::codegen::{write_page_settings, generate_header, generate_transaction_table, generate_summary_table, generate_iban};
+use crate::codegen::{
+    generate_header, generate_iban, generate_summary_table, generate_transaction_table,
+    write_page_settings,
+};
 use crate::config::ConfigStore;
 use crate::contact::Contact;
-use crate::data::{Transaction, Date, Datastore};
+use crate::data::{Datastore, Date, Transaction};
 use crate::errors::Errcode;
-use crate::interface::ask::{ask_user_nonempty, ask_for_transactions};
+use crate::interface::ask::ask_for_transactions;
 use crate::lang::LangDict;
 
 use super::TypstData;
-use super::invoice::InvoiceInput;
 
 #[derive(Serialize, Deserialize)]
 pub struct QuotationSavedData {
@@ -62,9 +64,13 @@ impl QuotationSavedData {
 
     pub fn add_quote(&mut self, quote: &QuotationInput) {
         if self.history.get(&quote.recipient).is_none() {
-            self.history.insert(quote.recipient.clone(), vec![(quote.clone(), None)]);
+            self.history
+                .insert(quote.recipient.clone(), vec![(quote.clone(), None)]);
         } else {
-            self.history.get_mut(&quote.recipient).unwrap().push((quote.clone(), None));
+            self.history
+                .get_mut(&quote.recipient)
+                .unwrap()
+                .push((quote.clone(), None));
         }
     }
 }
@@ -96,7 +102,7 @@ impl QuotationInput {
         }
     }
 
-    pub fn ask(config: &ConfigStore, recipient: String, lang: &LangDict) -> QuotationInput {
+    pub fn ask(_config: &ConfigStore, recipient: String, lang: &LangDict) -> QuotationInput {
         // TODO    Do the same in invoices
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
@@ -106,10 +112,13 @@ impl QuotationInput {
         let word_ppu = lang.get_doctype_word("invoice", "tx_price_per_unit");
 
         let tx = ask_for_transactions(word_desc, word_units, word_ppu);
-        QuotationInput { recipient, created, tx, }
+        QuotationInput {
+            recipient,
+            created,
+            tx,
+        }
     }
 }
-
 
 pub struct QuotationBuilder<'a> {
     cfg: &'a ConfigStore,
@@ -138,7 +147,8 @@ impl<'a> QuotationBuilder<'a> {
         source += "#v(sep_par())\n";
         self.generate_metadata(&mut source);
         source += "#v(sep_par())\n";
-        let total_price = generate_transaction_table(&mut source, &self.inp.tx, self.lang, "quotation");
+        let total_price =
+            generate_transaction_table(&mut source, &self.inp.tx, self.lang, "quotation");
         source += "#v(sep_par())\n";
         generate_summary_table(&mut source, total_price, self.lang, self.cfg, "quotation");
         source += "#v(sep_par())\n";

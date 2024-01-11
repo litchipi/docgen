@@ -1,11 +1,11 @@
-use crossterm::event::{Event, KeyEventKind, KeyCode};
+use crossterm::event::{Event, KeyCode, KeyEventKind};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Borders, List, ListDirection, ListState};
 use ratatui::Frame;
-use ratatui::style::{Modifier, Style, Color};
-use ratatui::widgets::{List, Block, Borders, ListDirection, ListState};
 
 use crate::errors::Errcode;
 
-use super::{enter_tui_screen, quit_tui_screen, Tuiterm, get_keyboard_events};
+use super::{enter_tui_screen, get_keyboard_events, quit_tui_screen, Tuiterm};
 
 pub struct SelectFromList<'a> {
     list: List<'a>,
@@ -24,7 +24,7 @@ impl<'a> SelectFromList<'a> {
 
         let mut state = ListState::default();
         state.select(Some(0));
-        SelectFromList { list, state, }
+        SelectFromList { list, state }
     }
 
     fn ui(&mut self, frame: &mut Frame) {
@@ -36,9 +36,13 @@ impl<'a> SelectFromList<'a> {
             if key.kind == KeyEventKind::Press {
                 match key.code {
                     KeyCode::Enter => return Ok(true),
-                    KeyCode::Up => self.state.select(Some(self.state.selected().unwrap().saturating_sub(1))),
-                    KeyCode::Down => self.state.select(Some((self.state.selected().unwrap() + 1).min(self.list.len() - 1))),
-                    _ => {},
+                    KeyCode::Up => self
+                        .state
+                        .select(Some(self.state.selected().unwrap().saturating_sub(1))),
+                    KeyCode::Down => self.state.select(Some(
+                        (self.state.selected().unwrap() + 1).min(self.list.len() - 1),
+                    )),
+                    _ => {}
                 }
             }
         }
@@ -60,7 +64,7 @@ where
     F: Fn(&T) -> String,
 {
     let mut terminal = enter_tui_screen().expect("Unable to init TUI");
-    let mut widget = SelectFromList::init(list.iter().map(|n| disp_f(n)));
+    let mut widget = SelectFromList::init(list.iter().map(disp_f));
     widget.exec(&mut terminal).expect("Error while exec widget");
     quit_tui_screen().expect("Unable to exit TUI");
     widget.state.selected().unwrap()
