@@ -16,19 +16,26 @@ months = [
 [general]
 currency_symbol = "€"
 
-[invoice]
-recipient_intro = "Facturé à"
-invoice_nb = "Facture numéro"
+tax_name = "TVA"
+tax_not_applicable = "Tax non applicable"
+
+total_price_no_tax = "Total HT"
+total_price_with_tax = "Total TTC"
+
 creation_date = "Créée le"
 sell_date = "Échéance"
+
 tx_item_description = "Description"
 tx_units = "Unités"
 tx_price_per_unit = "Prix unitaire"
-total_price = "Total HT"
-footer = "Legal stuff here"
-tax_name = "TVA"
-tax_not_applicable = "Tax non applicable"
-total_price_no_tax = "Total HT"
-total_price_with_tax = "Total TTC"
+
 iban_bank = "Nom"
 iban_title = "Coordonnées bancaires"
+
+[invoice]
+recipient_intro = "Facturé à"
+invoice_nb = "Facture numéro"
+
+[quotation]
+recipient_intro = "Devis addressé à"
+quotation_nb = "Devis numéro"

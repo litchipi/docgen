@@ -13,11 +13,14 @@ name = "Bank name"
 iban = "IBAN"
 bic = "BIC"
 
-[invoice]
-add_iban = true
-footer = ""
+[taxes]
 tax_applicable = false
 tax_rate = 0.2
 
+[invoice]
+add_iban = true
+footer = ""
+
 [quotation]
+add_iban = true
 footer = ""

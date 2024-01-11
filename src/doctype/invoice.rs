@@ -57,8 +57,8 @@ pub struct InvoiceInput {
 
 impl InvoiceInput {
     pub fn from_quote(config: &ConfigStore, idx: usize, quote: &QuotationInput) -> InvoiceInput {
-        let tax_rate = if config.get_bool("invoice", "tax_applicable") {
-            Some(config.get_float("invoice", "tax_rate"))
+        let tax_rate = if config.get_bool("general", "tax_applicable") {
+            Some(config.get_float("general", "tax_rate"))
         } else {
             None
         };
@@ -73,13 +73,13 @@ impl InvoiceInput {
     pub fn ask(config: &ConfigStore, recipient: String, lang: &LangDict) -> InvoiceInput {
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
 
-        let word_desc = lang.get_doctype_word("invoice", "tx_item_description");
-        let word_units = lang.get_doctype_word("invoice", "tx_units");
-        let word_ppu = lang.get_doctype_word("invoice", "tx_price_per_unit");
+        let word_desc = lang.get_doctype_word("general", "tx_item_description");
+        let word_units = lang.get_doctype_word("general", "tx_units");
+        let word_ppu = lang.get_doctype_word("general", "tx_price_per_unit");
 
         let tx = ask_for_transactions(word_desc, word_units, word_ppu);
-        let tax_rate = if config.get_bool("invoice", "tax_applicable") {
-            Some(config.get_float("invoice", "tax_rate"))
+        let tax_rate = if config.get_bool("taxes", "tax_applicable") {
+            Some(config.get_float("taxes", "tax_rate"))
         } else {
             None
         };
@@ -122,9 +122,9 @@ impl<'a> InvoiceBuilder<'a> {
         self.generate_metadata(&mut source, &current_date);
         source += "#v(sep_par())\n";
         let total_price =
-            generate_transaction_table(&mut source, &self.inp.tx, self.lang, "invoice");
+            generate_transaction_table(&mut source, &self.inp.tx, self.lang);
         source += "#v(sep_par())\n";
-        generate_summary_table(&mut source, total_price, self.lang, self.cfg, "invoice");
+        generate_summary_table(&mut source, total_price, self.lang, self.cfg);
         source += "#v(sep_par())\n";
 
         if self.cfg.get_bool("invoice", "add_iban") {
@@ -157,9 +157,9 @@ impl<'a> InvoiceBuilder<'a> {
             self.data.contacts.get(&self.inp.recipient).address,
             self.lang.get_doctype_word("invoice", "invoice_nb"),
             self.data.invoices.history.len(),
-            self.lang.get_doctype_word("invoice", "creation_date"),
+            self.lang.get_doctype_word("general", "creation_date"),
             current_date_fmt,
-            self.lang.get_doctype_word("invoice", "sell_date"),
+            self.lang.get_doctype_word("general", "sell_date"),
             self.inp.date_sell,
         )
         .as_str();

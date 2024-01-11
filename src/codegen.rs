@@ -1,4 +1,4 @@
-use crate::{config::ConfigStore, data::Transaction, lang::LangDict};
+use crate::{config::ConfigStore, lang::LangDict, data::Transaction};
 
 pub fn sanitize(data: &str) -> String {
     data.replace('@', "\\@").replace('#', "\\#")
@@ -59,16 +59,11 @@ pub fn generate_header(cfg: &ConfigStore, source: &mut String) {
     .as_str();
 }
 
-pub fn generate_transaction_table(
-    source: &mut String,
-    tx: &[Transaction],
-    lang: &LangDict,
-    key: &str,
-) -> f64 {
-    let word_desc = lang.get_doctype_word(key, "tx_item_description");
-    let word_units = lang.get_doctype_word(key, "tx_units");
-    let word_ppu = lang.get_doctype_word(key, "tx_price_per_unit");
-    let word_total = lang.get_doctype_word(key, "total_price");
+pub fn generate_transaction_table(source: &mut String, tx: &[Transaction], lang: &LangDict) -> f64 {
+    let word_desc = lang.get_doctype_word("general", "tx_item_description");
+    let word_units = lang.get_doctype_word("general", "tx_units");
+    let word_ppu = lang.get_doctype_word("general", "tx_price_per_unit");
+    let word_total = lang.get_doctype_word("general", "total_price_no_tax");
     let curr_sym = lang.get_doctype_word("general", "currency_symbol");
     *source += format!(
         "#table(
@@ -95,21 +90,16 @@ pub fn generate_transaction_table(
     total_price
 }
 
-pub fn generate_summary_table(
-    source: &mut String,
-    total_price: f64,
-    lang: &LangDict,
-    cfg: &ConfigStore,
-    key: &str,
-) {
+
+pub fn generate_summary_table(source: &mut String, total_price: f64, lang: &LangDict, cfg: &ConfigStore) {
     let curr_sym = lang.get_doctype_word("general", "currency_symbol");
-    let (tax_fmt, tax_amnt) = if cfg.get_bool(key, "tax_applicable") {
-        let tax_rate: f64 = cfg.get_float(key, "tax_rate");
+    let (tax_fmt, tax_amnt) = if cfg.get_bool("taxes", "tax_applicable") {
+        let tax_rate: f64 = cfg.get_float("taxes", "tax_rate");
         let amnt = total_price * tax_rate;
         (
             format!(
                 "[*{} {:.2}%*], [{:.2} {curr_sym}]",
-                lang.get_doctype_word(key, "tax_name"),
+                lang.get_doctype_word("general", "tax_name"),
                 tax_rate * 100.0,
                 amnt,
             ),
@@ -119,7 +109,7 @@ pub fn generate_summary_table(
         (
             format!(
                 "[*{}*], []",
-                lang.get_doctype_word(key, "tax_not_applicable")
+                lang.get_doctype_word("general", "tax_not_applicable")
             ),
             0.0,
         )
@@ -133,12 +123,14 @@ pub fn generate_summary_table(
         {tax_fmt},
         [*{}*], [{:.2} {curr_sym}],
     )",
-        lang.get_doctype_word(key, "total_price_no_tax"),
-        lang.get_doctype_word(key, "total_price_with_tax"),
+        lang.get_doctype_word("general", "total_price_no_tax"),
+        lang
+            .get_doctype_word("general", "total_price_with_tax"),
         total_price + tax_amnt
     )
     .as_str();
 }
+
 
 pub fn generate_iban(source: &mut String, lang: &LangDict, cfg: &ConfigStore) {
     *source += format!(
