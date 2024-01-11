@@ -14,9 +14,9 @@ impl ConfigStore {
             .get("company")
             .expect("Unable to get company data")
             .get(data)
-            .expect(format!("Unable to get data {data} from company").as_str())
+            .unwrap_or_else(|| panic!("Unable to get data {data} from company"))
             .as_str()
-            .expect(format!("Unable to convert data {data} to String").as_str())
+            .unwrap_or_else(|| panic!("Unable to convert data {data} to String"))
             .to_string()
     }
 
@@ -35,19 +35,19 @@ impl ConfigStore {
     pub fn get_bool(&self, key: &str, data: &str) -> bool {
         self.get_toml_value(key, data)
             .as_bool()
-            .expect(format!("Unable to convert {key}:{data} to boolean").as_str())
+            .unwrap_or_else(|| panic!("Unable to convert {key}:{data} to boolean"))
     }
 
     pub fn get_float(&self, key: &str, data: &str) -> f64 {
         self.get_toml_value(key, data)
             .as_float()
-            .expect(format!("Unable to convert {key}:{data} to float").as_str())
+            .unwrap_or_else(|| panic!("Unable to convert {key}:{data} to float"))
     }
 
     pub fn get_str<'a>(&'a self, key: &str, data: &str) -> &'a str {
         self.get_toml_value(key, data)
             .as_str()
-            .expect(format!("Unable to convert {key}:{data} to str").as_str())
+            .unwrap_or_else(|| panic!("Unable to convert {key}:{data} to str"))
     }
 }
 

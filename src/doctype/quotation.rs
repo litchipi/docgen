@@ -147,7 +147,12 @@ impl<'a> QuotationBuilder<'a> {
         source += "#v(sep_par())\n";
         generate_summary_table(&mut source, total_price, self.lang, self.cfg);
         source += "#v(sep_par())\n";
-        source += format!("=== {}\n", self.lang.get_doctype_word("quotation", "payment_conditions")).as_str();
+        source += format!(
+            "=== {}\n",
+            self.lang
+                .get_doctype_word("quotation", "payment_conditions")
+        )
+        .as_str();
         source += self.cfg.get_str("quotation", "payment_conditions");
         source += "\n";
 

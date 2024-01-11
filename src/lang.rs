@@ -24,13 +24,13 @@ impl LangDict {
         let word = word.to_string();
         self.data
             .get(&subtable)
-            .expect(format!("Unable to get lang table {subtable}").as_str())
+            .unwrap_or_else(|| panic!("Unable to get lang table {subtable}"))
             .as_table()
-            .expect(format!("Unable to convert lang table {subtable} to table").as_str())
+            .unwrap_or_else(|| panic!("Unable to convert lang table {subtable} to table"))
             .get(&word)
-            .expect(format!("Unable to get word {subtable}:{word}").as_str())
+            .unwrap_or_else(|| panic!("Unable to get word {subtable}:{word}"))
             .as_str()
-            .expect(format!("Unable to convert word {subtable}:{word} to String").as_str())
+            .unwrap_or_else(|| panic!("Unable to convert word {subtable}:{word} to String"))
             .to_string()
     }
 }

@@ -133,7 +133,7 @@ impl<'a> InvoiceBuilder<'a> {
     fn generate_metadata(&self, source: &mut String, current_date: &DateTime<Utc>) {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
 
-        if let Some(nb) = self.inp.quote_nb {
+        if let Some(_nb) = self.inp.quote_nb {
             // TODO    Add quotation number to metadata
         }
 
