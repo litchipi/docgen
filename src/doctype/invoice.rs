@@ -26,7 +26,10 @@ pub struct InvoiceSavedData {
 
 impl InvoiceSavedData {
     pub fn init() -> InvoiceSavedData {
-        InvoiceSavedData { id_counter: 1, history: vec![] }
+        InvoiceSavedData {
+            id_counter: 1,
+            history: vec![],
+        }
     }
 
     pub fn import(fname: &Path) -> InvoiceSavedData {
@@ -58,7 +61,13 @@ pub struct InvoiceInput {
 }
 
 impl InvoiceInput {
-    pub fn from_quote(id: usize, config: &ConfigStore, lang: &LangDict, idx: usize, quote: &QuotationInput) -> InvoiceInput {
+    pub fn from_quote(
+        id: usize,
+        config: &ConfigStore,
+        lang: &LangDict,
+        idx: usize,
+        quote: &QuotationInput,
+    ) -> InvoiceInput {
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
         let tax_rate = if config.get_bool("taxes", "tax_applicable") {
@@ -74,10 +83,14 @@ impl InvoiceInput {
             quote_nb: Some(idx),
             tax_rate,
             created,
-
         }
     }
-    pub fn ask(id: usize, recipient: String, config: &ConfigStore, lang: &LangDict) -> InvoiceInput {
+    pub fn ask(
+        id: usize,
+        recipient: String,
+        config: &ConfigStore,
+        lang: &LangDict,
+    ) -> InvoiceInput {
         let current_date = Utc::now();
         let created = lang.get_date_fmt(&current_date);
         let date_sell = ask_user_nonempty("Enter the date where the sell was done: ");
@@ -145,7 +158,8 @@ impl<'a> InvoiceBuilder<'a> {
         let current_date_fmt = self.lang.get_date_fmt(current_date);
 
         let quotation_md = if let Some(nb) = self.inp.quote_nb {
-            format!("\\\n\t{} \\#*{}{:0>5}*",
+            format!(
+                "\\\n\t{} \\#*{}{:0>5}*",
                 self.lang.get_doctype_word("invoice", "quotation_related"),
                 self.cfg.get_str("quotation", "id_prefix"),
                 nb
